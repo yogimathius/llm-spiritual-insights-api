@@ -1,10 +1,15 @@
 from django.core.management.base import BaseCommand
+
 from ai_app.models.user import User
 
 
 class Command(BaseCommand):
-    help = "Initialize mock user"
+    help = "Idempotently initialize local test user"
 
     def handle(self, *args, **kwargs):
-        User.objects.create(username="testuser")
-        self.stdout.write(self.style.SUCCESS("Mock user created"))
+        user, created = User.objects.get_or_create(
+            username="testuser",
+            defaults={"email": "testuser@local.perspective-loom.internal"},
+        )
+        status_msg = "Created" if created else "Verified existing"
+        self.stdout.write(self.style.SUCCESS(f"{status_msg} user '{user.username}'"))

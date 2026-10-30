@@ -1,71 +1,80 @@
-from openai import OpenAI
-from ollama import chat
-import os
+"""
+Backward-compatible adapter over `ai_app.engine.providers`.
+
+Preserves the `OpenAIService` class signature used by legacy views/services while
+routing all execution through the new provider abstraction:
+- Fixes the hardcoded `model="llama2"` streaming bug in Ollama
+- Removes raw `print(content, end="", flush=True)` stdout pollution
+- Supports `FakeModelProvider` when `DEFAULT_MODEL_PROVIDER=fake` or when no API key is set
+"""
+
+from __future__ import annotations
+
 import logging
+import os
+from collections.abc import Iterator
+
+from ai_app.engine.providers import ModelProvider, ProviderResponse, get_model_provider
 
 logger = logging.getLogger("ai_app")
 
 
 class OpenAIService:
-    def __init__(self, use_ollama=False, model_name=None):
+    """Adapter bridging legacy `OpenAIService` calls to `ModelProvider`."""
+
+    def __init__(
+        self,
+        use_ollama: bool = False,
+        model_name: str | None = None,
+        provider_name: str | None = None,
+    ) -> None:
         self.use_ollama = use_ollama
-        self.model_name = model_name or ("llama3.2" if use_ollama else "gpt-4o-mini")
-        if not use_ollama:
-            self.client = OpenAI(
-                base_url="https://models.inference.ai.azure.com",
-                api_key=os.getenv("GITHUB_TOKEN"),
+        default_provider = provider_name or os.getenv("DEFAULT_MODEL_PROVIDER", "fake")
+        if use_ollama:
+            self.model_name = model_name or os.getenv("DEFAULT_OLLAMA_MODEL", "llama3.2")
+            self.provider: ModelProvider = get_model_provider(
+                "ollama", use_ollama=True, model_name=self.model_name
+            )
+        else:
+            # Fall back to deterministic fake provider if github_models is selected without token
+            if default_provider in {"github_models", "openai"} and not (
+                os.getenv("GITHUB_TOKEN") or os.getenv("OPENAI_API_KEY")
+            ):
+                logger.info(
+                    "No GITHUB_TOKEN/OPENAI_API_KEY found in environment; using FakeModelProvider."
+                )
+                default_provider = "fake"
+            self.model_name = model_name or os.getenv("DEFAULT_HOSTED_MODEL", "gpt-4o-mini")
+            self.provider = get_model_provider(
+                default_provider, use_ollama=False, model_name=self.model_name
             )
 
-    def create_completion(self, messages, temperature=0.7, max_tokens=1000, top_p=1.0):
-        try:
-            if self.use_ollama:
-                response_stream = chat(
-                    model=self.model_name, messages=messages, stream=True
-                )
+    def create_completion(
+        self,
+        messages: list[dict[str, str]],
+        temperature: float = 0.7,
+        max_tokens: int = 1000,
+        top_p: float = 1.0,
+        response_format: str | None = None,
+    ) -> str:
+        resp: ProviderResponse = self.provider.complete(
+            messages=messages,
+            model=self.model_name,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            response_format=response_format,
+        )
+        return resp.content
 
-                full_response = ""
-                for chunk in response_stream:
-                    if chunk and "message" in chunk and "content" in chunk["message"]:
-                        content = chunk["message"]["content"]
-                        full_response += content
-                        print(content, end="", flush=True)
-
-                return full_response
-            else:
-                response = self.client.chat.completions.create(
-                    model=self.model_name,
-                    messages=messages,
-                    temperature=temperature,
-                    max_tokens=max_tokens,
-                    top_p=top_p,
-                )
-                return response.choices[0].message.content
-        except Exception as e:
-            logger.error(f"Error in completion: {e}")
-            raise
-
-    def create_streaming_completion(self, messages, temperature=0.7, max_tokens=1000):
-        """Separate method for streaming responses"""
-        try:
-            if self.use_ollama:
-                stream = chat(
-                    model="llama2",
-                    messages=messages,
-                    stream=True,
-                )
-                for chunk in stream:
-                    yield chunk["message"]["content"]
-            else:
-                response = self.client.chat.completions.create(
-                    model=self.model_name,
-                    messages=messages,
-                    temperature=temperature,
-                    max_tokens=max_tokens,
-                    stream=True,
-                )
-                for chunk in response:
-                    if chunk.choices[0].delta.content:
-                        yield chunk.choices[0].delta.content
-        except Exception as e:
-            logger.error(f"Error in streaming completion: {e}")
-            raise
+    def create_streaming_completion(
+        self,
+        messages: list[dict[str, str]],
+        temperature: float = 0.7,
+        max_tokens: int = 1000,
+    ) -> Iterator[str]:
+        yield from self.provider.stream(
+            messages=messages,
+            model=self.model_name,
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )

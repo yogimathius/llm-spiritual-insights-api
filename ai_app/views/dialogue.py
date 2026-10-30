@@ -25,7 +25,11 @@ def ask_role(request: HttpRequest) -> JsonResponse:
         if not request.body:
             return JsonResponse({"error": "Empty request body"}, status=400)
 
-        data = load_json_object(request.body)
+        try:
+            data = load_json_object(request.body)
+        except ValueError:
+            logger.warning("Invalid JSON payload received on ask_role")
+            return JsonResponse({"error": "Invalid JSON format"}, status=400)
         user_prompt = str(data.get("prompt") or "").strip()
         role_name = str(data.get("role") or "").strip()
         use_ollama = bool(data.get("use_ollama", False))
@@ -60,9 +64,6 @@ def ask_role(request: HttpRequest) -> JsonResponse:
             }
         )
 
-    except (json.JSONDecodeError, ValueError):
-        logger.warning("Invalid JSON payload received on ask_role")
-        return JsonResponse({"error": "Invalid JSON format"}, status=400)
     except LLMRole.DoesNotExist:
         return JsonResponse({"error": f"Role '{role_name}' not found"}, status=404)
     except Exception as exc:
@@ -81,7 +82,11 @@ def full_dialogue(request: HttpRequest) -> JsonResponse:
         if not request.body:
             return JsonResponse({"error": "Empty request body"}, status=400)
 
-        data = load_json_object(request.body)
+        try:
+            data = load_json_object(request.body)
+        except ValueError:
+            logger.warning("Invalid JSON payload received on full_dialogue")
+            return JsonResponse({"error": "Invalid JSON"}, status=400)
         user_prompt = str(data.get("prompt") or "").strip()
         should_debate = bool(data.get("debate", False))
         use_ollama = bool(data.get("use_ollama", False))
@@ -104,9 +109,6 @@ def full_dialogue(request: HttpRequest) -> JsonResponse:
             }
         )
 
-    except (json.JSONDecodeError, ValueError):
-        logger.warning("Invalid JSON payload received on full_dialogue")
-        return JsonResponse({"error": "Invalid JSON"}, status=400)
     except Exception as exc:
         logger.error(f"Error in full_dialogue: {type(exc).__name__}")
         return JsonResponse({"error": "Internal server error"}, status=500)
@@ -123,7 +125,11 @@ def stream_dialogue(request: HttpRequest):
         if not request.body:
             return JsonResponse({"error": "Empty request body"}, status=400)
 
-        data = load_json_object(request.body)
+        try:
+            data = load_json_object(request.body)
+        except ValueError:
+            logger.warning("Invalid JSON payload received on stream_dialogue")
+            return JsonResponse({"error": "Invalid JSON"}, status=400)
         user_prompt = str(data.get("prompt") or "").strip()
         should_debate = bool(data.get("debate", False))
         use_ollama = bool(data.get("use_ollama", False))
@@ -143,9 +149,6 @@ def stream_dialogue(request: HttpRequest):
 
         return StreamingHttpResponse(response_stream(), content_type="application/x-ndjson")
 
-    except (json.JSONDecodeError, ValueError):
-        logger.warning("Invalid JSON payload received on stream_dialogue")
-        return JsonResponse({"error": "Invalid JSON"}, status=400)
     except Exception as exc:
         logger.error(f"Error in stream_dialogue: {type(exc).__name__}")
         return JsonResponse({"error": "Internal server error"}, status=500)

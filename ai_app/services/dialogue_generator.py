@@ -145,7 +145,7 @@ class DialogueGenerator:
                     """
                 )
             except LLMRole.DoesNotExist:
-                logger.error(f"Collaborator not found: {collab_decision['chosen_collaborator']}")
+                logger.error("Requested collaborator not found.")
                 return role.prompt_template
 
         return dedent(

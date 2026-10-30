@@ -103,6 +103,40 @@ class RequestBoundaryTests(TestCase):
         self.assertEqual(response.status_code, 500)
 
     @override_settings(PERSPECTIVE_LOOM_API_KEY="service-key")
+    def test_legacy_dialogue_processing_errors_are_not_bad_request_json(self) -> None:
+        LLMRole.objects.create(
+            name="Test Role", description="A test role", prompt_template="Respond carefully"
+        )
+        for error in (ValueError("internal"), json.JSONDecodeError("internal", "x", 0)):
+            with self.subTest(error_type=type(error).__name__):
+                with patch(
+                    "ai_app.views.dialogue.DialogueGenerator.process_single_role", side_effect=error
+                ):
+                    response = self.client.post(
+                        "/ai/ask-role/",
+                        data=json.dumps({"prompt": "A question", "role": "Test Role"}),
+                        content_type="application/json",
+                        HTTP_X_API_KEY="service-key",
+                        HTTP_X_PERSPECTIVE_USER="alice",
+                    )
+                self.assertEqual(response.status_code, 500)
+
+    @override_settings(PERSPECTIVE_LOOM_API_KEY="service-key")
+    def test_full_dialogue_processing_error_is_not_bad_request_json(self) -> None:
+        with patch(
+            "ai_app.views.dialogue.DialogueGenerator.process_full_dialogue",
+            side_effect=ValueError("internal"),
+        ):
+            response = self.client.post(
+                "/ai/full-dialogue/",
+                data=json.dumps({"prompt": "A question"}),
+                content_type="application/json",
+                HTTP_X_API_KEY="service-key",
+                HTTP_X_PERSPECTIVE_USER="alice",
+            )
+        self.assertEqual(response.status_code, 500)
+
+    @override_settings(PERSPECTIVE_LOOM_API_KEY="service-key")
     def test_unowned_run_is_not_readable_or_evaluable(self) -> None:
         DeliberationRun.objects.create(run_id="legacy-run", trace_id="legacy-trace", user=None)
         headers = {"HTTP_X_API_KEY": "service-key", "HTTP_X_PERSPECTIVE_USER": "alice"}
@@ -242,6 +276,20 @@ class DialoguePrivacyTests(TestCase):
             result = generator.process_single_role(self.role.name, "question")
         self.assertEqual(result["response_data"][0]["response"], private_response)
         self.assertNotIn(private_response, "\n".join(captured.output))
+
+    def test_unknown_collaborator_name_from_model_is_not_logged(self) -> None:
+        generator = DialogueGenerator(Mock())
+        with self.assertLogs("ai_app", level="ERROR") as captured:
+            prompt = generator.create_system_prompt(
+                self.role,
+                {
+                    "should_collaborate": True,
+                    "chosen_collaborator": "private-model-text-98432",
+                    "reasoning": "request support",
+                },
+            )
+        self.assertEqual(prompt, self.role.prompt_template)
+        self.assertNotIn("private-model-text-98432", "\n".join(captured.output))
 
     def test_processing_error_does_not_log_raw_model_response(self) -> None:
         private_response = '[{"role": "Test Role", "response": 42, "note": "private-98432"}]'

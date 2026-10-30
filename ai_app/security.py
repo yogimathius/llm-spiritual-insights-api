@@ -17,6 +17,7 @@ from typing import Any
 
 from django.conf import settings
 from django.http import HttpRequest, JsonResponse
+from django.views.decorators.csrf import csrf_exempt, csrf_protect
 
 from ai_app.models.user import User
 
@@ -150,6 +151,21 @@ def require_valid_auth(view_func: Callable[..., Any]) -> Callable[..., Any]:
         err = check_api_key_if_required(request)
         if err is not None:
             return err
+        return view_func(request, *args, **kwargs)
+
+    return _wrapped
+
+
+def csrf_protect_session(view_func: Callable[..., Any]) -> Callable[..., Any]:
+    """Require a CSRF token for session writes while allowing header-key API clients."""
+    protected_view = csrf_protect(view_func)
+
+    @csrf_exempt
+    @wraps(view_func)
+    def _wrapped(request: HttpRequest, *args: Any, **kwargs: Any) -> Any:
+        django_user = getattr(request, "user", None)
+        if django_user is not None and getattr(django_user, "is_authenticated", False):
+            return protected_view(request, *args, **kwargs)
         return view_func(request, *args, **kwargs)
 
     return _wrapped

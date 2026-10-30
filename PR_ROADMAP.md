@@ -67,11 +67,11 @@ Introduces the Evaluation Laboratory to test the core research hypothesis: when 
 
 ### Architectural Decisions
 - Created `datasets/eval_benchmark.json` with 4 multi-domain benchmark cases (`arch-001`, `arch-002`, `phil-001`, `symb-001`) and explicit evidence constraints.
-- Built `DeliberationEvaluator` (`ai_app/evaluation/evaluator.py`) and `ExperimentRunner` (`ai_app/evaluation/runner.py`) measuring constraint coverage, evidence separation, disagreement preservation, uncertainty acknowledgment, latency, token multipliers, and quality-per-1k-tokens.
-- Added `python manage.py run_evaluation` and standalone `verify_engine.py`, generating `datasets/latest_evaluation_report.json`.
+- Built `DeliberationEvaluator` (`ai_app/evaluation/evaluator.py`) and `ExperimentRunner` (`ai_app/evaluation/runner.py`) measuring constraint markers, evidence separation, disagreement preservation, uncertainty acknowledgment, latency, token multipliers, and structural rubric points per 1,000 tokens. Synthetic scores do not establish answer quality.
+- Added `python manage.py run_evaluation` and standalone `verify_engine.py`, generating an ignored report under `reports/`.
 
 ### Files Changed
-- `datasets/eval_benchmark.json`, `datasets/latest_evaluation_report.json`
+- `datasets/eval_benchmark.json`; generated reports are kept under `reports/`.
 - `ai_app/evaluation/__init__.py`, `ai_app/evaluation/evaluator.py`, `ai_app/evaluation/runner.py`
 - `ai_app/management/commands/run_evaluation.py`
 

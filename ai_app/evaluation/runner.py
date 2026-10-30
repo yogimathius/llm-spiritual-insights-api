@@ -6,9 +6,8 @@ Executes benchmark cases across:
 - Strategy B: `independent_perspectives`
 - Strategy C: `deliberative_exchange`
 
-Records full traces, token counts, costs, latencies, and rubric scorecards,
-and generates an honest empirical finding on when deliberation helps vs. when
-it merely increases latency and token cost.
+Records traces, token counts, costs, latencies, and structural rubric scorecards.
+The deterministic fake-provider run is a smoke test, not evidence of answer quality.
 """
 
 from __future__ import annotations
@@ -87,6 +86,11 @@ class ExperimentRunner:
             "domain": domain,
             "provider": self.provider.provider_name,
             "model": self.provider.default_model,
+            "evaluation_method": (
+                "synthetic_structural"
+                if self.provider.provider_name == "fake"
+                else "automated_structural"
+            ),
             "strategies": strategy_runs,
             "comparative_findings": analysis,
         }
@@ -165,8 +169,15 @@ class ExperimentRunner:
             "executed_at": datetime.now(UTC).isoformat(),
             "provider": self.provider.provider_name,
             "model": self.provider.default_model,
+            "evaluation_method": (
+                "synthetic_structural"
+                if self.provider.provider_name == "fake"
+                else "automated_structural"
+            ),
             "aggregate_by_strategy": summary_table,
-            "overall_conclusion": self._build_overall_conclusion(summary_table),
+            "overall_conclusion": self._build_overall_conclusion(
+                summary_table, provider_name=self.provider.provider_name
+            ),
             "cases": case_results,
         }
 
@@ -196,23 +207,24 @@ class ExperimentRunner:
             delib["overall_quality_score"] - base["overall_quality_score"], 2
         )
 
-        # Honest determination of when multi-perspective deliberation is worth the cost
+        # Compare structural rubric scores and token counts without inferring usefulness.
         if quality_delta_delib <= 0.15:
             recommendation = (
-                "Single-model baseline achieves comparable rubric coverage at a fraction of the token "
-                f"cost ({delib_token_mult}x more tokens for deliberative exchange). Multi-perspective "
-                "deliberation is not cost-justified for straightforward queries."
+                "The baseline has comparable structural rubric coverage in this case. "
+                f"Deliberative exchange used {delib_token_mult}x its tokens. "
+                "A usefulness judgment requires independent human review."
             )
         elif delib["overall_quality_score"] - indep["overall_quality_score"] <= 0.10:
             recommendation = (
-                f"Independent perspectives (+{quality_delta_indep} quality delta, {indep_token_mult}x tokens) "
-                "capture most of the multi-perspective trade-off and disagreement benefit without paying "
-                f"the extra cross-examination token overhead ({delib_token_mult}x tokens) of full deliberative exchange."
+                f"Independent perspectives scored {quality_delta_indep} rubric points above the baseline "
+                f"at {indep_token_mult}x its tokens. Deliberative exchange used {delib_token_mult}x "
+                "baseline tokens for a small additional structural score."
             )
         else:
             recommendation = (
-                f"Deliberative exchange (+{quality_delta_delib} quality delta) surfaces deeper cross-perspective "
-                f"tensions and boundary conditions, but incurs a {delib_token_mult}x token multiplier over baseline."
+                f"Deliberative exchange scored {quality_delta_delib} rubric points above the baseline "
+                f"at {delib_token_mult}x its tokens. The score reflects structural markers, "
+                "not independently judged answer quality."
             )
 
         return {
@@ -230,7 +242,7 @@ class ExperimentRunner:
         }
 
     @staticmethod
-    def _build_overall_conclusion(summary_table: dict[str, Any]) -> str:
+    def _build_overall_conclusion(summary_table: dict[str, Any], *, provider_name: str) -> str:
         b = summary_table.get(DeliberationStrategy.SINGLE_MODEL_BASELINE.value, {})
         i = summary_table.get(DeliberationStrategy.INDEPENDENT_PERSPECTIVES.value, {})
         d = summary_table.get(DeliberationStrategy.DELIBERATIVE_EXCHANGE.value, {})
@@ -239,13 +251,17 @@ class ExperimentRunner:
 
         token_ratio_i = round(i["mean_tokens"] / max(1.0, b["mean_tokens"]), 1)
         token_ratio_d = round(d["mean_tokens"] / max(1.0, b["mean_tokens"]), 1)
+        prefix = (
+            "Synthetic smoke test with a deterministic fake provider. "
+            if provider_name == "fake"
+            else "Automated structural benchmark. "
+        )
         return (
-            f"Across {b['cases_evaluated']} benchmark cases: "
-            f"(1) Single-model baseline is by far the most token-efficient ({b['mean_tokens']} mean tokens, "
-            f"quality/1k={b['mean_quality_per_1k_tokens']}), making it preferable for routine lookups. "
-            f"(2) Independent perspectives increase mean rubric quality from {b['mean_overall_quality_score']} to "
-            f"{i['mean_overall_quality_score']} by surfacing explicit disagreements and epistemic limits at {token_ratio_i}x token cost. "
-            f"(3) Full deliberative exchange (with critique round) reaches {d['mean_overall_quality_score']} mean quality "
-            f"but consumes {token_ratio_d}x baseline tokens—demonstrating diminishing marginal returns compared to "
-            "independent perspectives unless explicit cross-examination of competing assumptions is required."
+            prefix
+            + f"Across {b['cases_evaluated']} cases, independent perspectives used {token_ratio_i}x "
+            f"and deliberative exchange used {token_ratio_d}x the baseline tokens. "
+            f"Their structural rubric scores were {i['mean_overall_quality_score']} and "
+            f"{d['mean_overall_quality_score']}, versus {b['mean_overall_quality_score']} for the baseline. "
+            "These scores do not establish answer quality or usefulness; compare real model outputs "
+            "with independent human review before making those claims."
         )

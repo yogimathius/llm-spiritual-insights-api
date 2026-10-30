@@ -18,7 +18,6 @@ import logging
 from typing import Any
 
 from django.http import HttpRequest, JsonResponse, StreamingHttpResponse
-from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
 from ai_app.engine.orchestrator import DeliberationEngine
@@ -38,7 +37,7 @@ from ai_app.evaluation.evaluator import DeliberationEvaluator
 from ai_app.evaluation.runner import ExperimentRunner
 from ai_app.models.deliberation import DeliberationRun
 from ai_app.models.llm_role import LLMRole
-from ai_app.security import check_api_key_if_required, resolve_request_user
+from ai_app.security import check_api_key_if_required, csrf_protect_session, resolve_request_user
 
 logger = logging.getLogger("ai_app")
 
@@ -116,7 +115,7 @@ def _persist_run(result: DeliberationRunResult, user_obj: Any) -> DeliberationRu
     )
 
 
-@csrf_exempt
+@csrf_protect_session
 @require_http_methods(["GET", "POST"])
 def perspectives_view(request: HttpRequest) -> JsonResponse:
     """List or register versioned PerspectiveSpecs."""
@@ -190,7 +189,7 @@ def perspectives_view(request: HttpRequest) -> JsonResponse:
         return JsonResponse({"error": str(exc)}, status=400)
 
 
-@csrf_exempt
+@csrf_protect_session
 @require_POST
 def start_deliberation(request: HttpRequest) -> JsonResponse:
     """Execute a structured deliberation workflow and persist its run record."""
@@ -217,7 +216,7 @@ def start_deliberation(request: HttpRequest) -> JsonResponse:
         return JsonResponse({"error": "Internal deliberation error"}, status=500)
 
 
-@csrf_exempt
+@csrf_protect_session
 @require_POST
 def stream_deliberation(request: HttpRequest):
     """Stream NDJSON progress events for a deliberation run and persist on completion."""
@@ -312,7 +311,7 @@ def get_run_detail(request: HttpRequest, run_id: str) -> JsonResponse:
     )
 
 
-@csrf_exempt
+@csrf_protect_session
 @require_POST
 def evaluate_run_view(request: HttpRequest) -> JsonResponse:
     """Evaluate a persisted deliberation run against domain rubrics."""
@@ -372,7 +371,7 @@ def evaluate_run_view(request: HttpRequest) -> JsonResponse:
         return JsonResponse({"error": str(exc)}, status=400)
 
 
-@csrf_exempt
+@csrf_protect_session
 @require_POST
 def compare_strategies_view(request: HttpRequest) -> JsonResponse:
     """Compare Strategies A, B, and C side-by-side on a question or benchmark."""

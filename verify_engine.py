@@ -153,17 +153,18 @@ def main() -> None:
     print("\nRunning Reproducible Evaluation Benchmark Suite (Strategies A vs B vs C)...")
     exp_runner = ExperimentRunner(provider_name="fake")
     report = exp_runner.run_benchmark_suite()
-    report_path = ROOT_DIR / "datasets" / "latest_evaluation_report.json"
+    report_path = ROOT_DIR / "reports" / "latest_evaluation_report.json"
+    report_path.parent.mkdir(parents=True, exist_ok=True)
     report_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
 
     for strat, m in report["aggregate_by_strategy"].items():
         print(
-            f"  [{strat:26s}] quality={m['mean_overall_quality_score']:.2f}/5.0 | "
+            f"  [{strat:26s}] structural_score={m['mean_overall_quality_score']:.2f}/5.0 | "
             f"disagreement={m['mean_disagreement_preservation_score']:.2f}/5.0 | "
             f"mean_tokens={m['mean_tokens']:6.1f} | "
-            f"quality/1k_tok={m['mean_quality_per_1k_tokens']:.2f}"
+            f"score/1k_tok={m['mean_quality_per_1k_tokens']:.2f}"
         )
-    print(f"\nConclusion: {report['overall_conclusion']}")
+    print(f"\nInterpretation: {report['overall_conclusion']}")
     print(f"Saved full reproducible benchmark artifact to: {report_path}")
 
 

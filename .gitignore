@@ -48,6 +48,7 @@ db.sqlite3-journal
 .mypy_cache/
 .coverage
 htmlcov/
+reports/
 
 # macOS
 .DS_Store

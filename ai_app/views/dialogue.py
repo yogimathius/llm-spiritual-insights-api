@@ -2,19 +2,18 @@ import json
 import logging
 
 from django.http import HttpRequest, JsonResponse, StreamingHttpResponse
-from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
 from ai_app.models.history import History
 from ai_app.models.llm_role import LLMRole
-from ai_app.security import resolve_request_user
+from ai_app.security import csrf_protect_session, resolve_request_user
 from ai_app.services.dialogue_generator import DialogueGenerator
 from ai_app.services.model_rotation import OpenAIService
 
 logger = logging.getLogger("ai_app")
 
 
-@csrf_exempt
+@csrf_protect_session
 @require_POST
 def ask_role(request: HttpRequest) -> JsonResponse:
     try:
@@ -70,7 +69,7 @@ def ask_role(request: HttpRequest) -> JsonResponse:
         return JsonResponse({"error": "Internal server error"}, status=500)
 
 
-@csrf_exempt
+@csrf_protect_session
 @require_POST
 def full_dialogue(request: HttpRequest) -> JsonResponse:
     try:
@@ -112,7 +111,7 @@ def full_dialogue(request: HttpRequest) -> JsonResponse:
         return JsonResponse({"error": "Internal server error"}, status=500)
 
 
-@csrf_exempt
+@csrf_protect_session
 @require_POST
 def stream_dialogue(request: HttpRequest):
     try:

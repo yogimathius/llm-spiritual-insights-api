@@ -4,7 +4,7 @@ from ai_app.models.history import History
 
 
 class Command(BaseCommand):
-    help = "Resets the history table to prepare for new array-based responses"
+    help = "Delete ALL conversation history records; use prune_expired_records for retention"
 
     def handle(self, *args, **options):
         # Delete all history records

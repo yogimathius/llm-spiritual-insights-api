@@ -26,10 +26,13 @@ from __future__ import annotations
 import json
 import logging
 import os
+from datetime import timedelta
 from unittest.mock import patch
 
+from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.test import Client, TestCase, override_settings
+from django.utils import timezone
 
 from ai_app.engine.orchestrator import DeliberationEngine
 from ai_app.engine.perspectives import DEFAULT_REGISTRY
@@ -135,6 +138,66 @@ class FoundationSecurityTests(TestCase):
     def test_user_header_alone_cannot_authorize_private_history(self) -> None:
         response = self.client.get("/ai/history/", HTTP_X_PERSPECTIVE_USER="alice")
         self.assertEqual(response.status_code, 401)
+
+    @override_settings(PERSPECTIVE_LOOM_API_KEY="test-service-key")
+    def test_session_writes_require_csrf_but_api_key_writes_do_not(self) -> None:
+        session_client = Client(enforce_csrf_checks=True)
+        auth_user = get_user_model().objects.create_user(username="session-user")
+        session_client.force_login(auth_user)
+        mutating_routes = [
+            ("/ai/ask-role/", {}),
+            ("/ai/full-dialogue/", {}),
+            ("/ai/stream-dialogue/", {}),
+            ("/ai/perspectives/", {}),
+            ("/ai/deliberate/", {"question": "A grounded question?"}),
+            ("/ai/deliberate/stream/", {"question": "A grounded question?"}),
+            ("/ai/evaluate/", {}),
+            ("/ai/compare/", {}),
+        ]
+        for route, payload in mutating_routes:
+            with self.subTest(route=route):
+                response = session_client.post(route, data=json.dumps(payload), content_type="application/json")
+                self.assertEqual(response.status_code, 403)
+
+        session_client.cookies["csrftoken"] = "a" * 32
+        allowed_session = session_client.post(
+            "/ai/deliberate/",
+            data=json.dumps({"question": "A grounded question?"}),
+            content_type="application/json",
+            HTTP_X_CSRFTOKEN="a" * 32,
+        )
+        self.assertEqual(allowed_session.status_code, 200)
+
+        api_client = Client(enforce_csrf_checks=True)
+        allowed_api = api_client.post(
+            "/ai/deliberate/",
+            data=json.dumps({"question": "A grounded question?"}),
+            content_type="application/json",
+            HTTP_X_API_KEY="test-service-key",
+        )
+        self.assertEqual(allowed_api.status_code, 200)
+
+    @override_settings(DATA_RETENTION_DAYS=90)
+    def test_prune_expired_records_keeps_recent_history_and_runs(self) -> None:
+        user = User.objects.create(username="retention-user", email="retention@example.com")
+        role = LLMRole.objects.get(name="Systems Pragmatist")
+        old_history = History.objects.create(user=user, role=role, prompt="old", response="old")
+        recent_history = History.objects.create(user=user, role=role, prompt="new", response="new")
+        old_run = DeliberationRun.objects.create(run_id="old-run", trace_id="old-trace", user=user)
+        recent_run = DeliberationRun.objects.create(run_id="new-run", trace_id="new-trace", user=user)
+        expired_at = timezone.now() - timedelta(days=91)
+        History.objects.filter(pk=old_history.pk).update(created_at=expired_at)
+        DeliberationRun.objects.filter(pk=old_run.pk).update(created_at=expired_at)
+
+        call_command("prune_expired_records", "--dry-run")
+        self.assertEqual(History.objects.count(), 2)
+        self.assertEqual(DeliberationRun.objects.count(), 2)
+
+        call_command("prune_expired_records")
+        self.assertFalse(History.objects.filter(pk=old_history.pk).exists())
+        self.assertTrue(History.objects.filter(pk=recent_history.pk).exists())
+        self.assertFalse(DeliberationRun.objects.filter(pk=old_run.pk).exists())
+        self.assertTrue(DeliberationRun.objects.filter(pk=recent_run.pk).exists())
 
     @override_settings(PERSPECTIVE_LOOM_API_KEY="top-secret-api-key")
     def test_api_key_enforcement_when_configured(self) -> None:
@@ -286,7 +349,10 @@ class EvaluationLaboratoryTests(TestCase):
         runner = ExperimentRunner(provider_name="fake")
         report = runner.run_benchmark_suite()
         self.assertEqual(len(report["cases"]), 4)
+        self.assertEqual(report["evaluation_method"], "synthetic_structural")
         self.assertIn("overall_conclusion", report)
+        self.assertIn("synthetic", report["overall_conclusion"].lower())
+        self.assertIn("human review", report["overall_conclusion"].lower())
         self.assertIn("single_model_baseline", report["aggregate_by_strategy"])
 
 

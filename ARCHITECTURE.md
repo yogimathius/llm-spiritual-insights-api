@@ -63,7 +63,8 @@ Implemented in `ai_project/settings.py` and `ai_app/security.py`:
    - `resolve_request_user()` permits private reads through authenticated Django sessions or a configured API key (`X-API-Key` / `Authorization: Bearer`). A trusted API client may use `X-Perspective-User` to select a record scope; that header is not end-user authentication.
    - `/ai/history/` and `/ai/runs/` filter records by `user=user_obj`. Cross-scope access to `/ai/runs/<run_id>/` returns `403 Forbidden`. The shared API key must remain server-side; public multi-user authentication is not implemented.
 3. **Structured Log Redaction**: `SensitiveDataRedactionFilter` scrubs `GITHUB_TOKEN`, `OPENAI_API_KEY`, and `PERSPECTIVE_LOOM_API_KEY` before log emission, and views log exception types rather than raw request bodies containing personal prompts.
-4. **Data Retention Policy**: Controlled via `DATA_RETENTION_DAYS` (default 90 days). Operators can purge historical records at any time via `python manage.py reset_history`.
+4. **CSRF**: Session-authenticated mutation requires a CSRF token. API-key clients remain usable without session cookies.
+5. **Data Retention**: `DATA_RETENTION_DAYS` (default 90) is applied by `python manage.py prune_expired_records`. Use `--dry-run` to preview. It does not run automatically; operators must schedule it. The legacy `reset_history` command deletes all conversation history.
 
 ---
 

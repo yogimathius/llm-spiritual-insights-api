@@ -6,7 +6,7 @@ Perspective Loom is a modular deliberation and evaluation engine that investigat
 
 > **Can structured multi-perspective deliberation produce more useful, accurate, and insightful results than a single capable language model—and under what conditions?**
 
-Rather than assuming multi-agent debate is always superior, Perspective Loom executes controlled strategies side-by-side, separates supplied evidence from interpretive claims, preserves meaningful disagreements, and records full execution traces (latency, token usage, estimated cost, and rubric scorecards) so trade-offs can be audited empirically.
+Perspective Loom executes controlled strategies side-by-side, separates supplied evidence from interpretive claims, preserves meaningful disagreements, and records execution traces (latency, token usage, estimated cost, and rubric scorecards) for inspection.
 
 ---
 
@@ -27,7 +27,7 @@ Rather than assuming multi-agent debate is always superior, Perspective Loom exe
   - `OllamaProvider`: Supports local Ollama models while respecting per-request model configuration and avoiding stdout leaks.
 - **Reproducible Evaluation Laboratory (`ai_app/evaluation/`)**:
   - Version-controlled benchmark dataset (`datasets/eval_benchmark.json`) spanning software architecture, philosophy of science, and symbolic interpretation.
-  - Domain-specific rubrics scoring constraint satisfaction, evidence separation, disagreement preservation, uncertainty acknowledgment, and quality-per-1,000-tokens.
+  - Domain-specific heuristics measuring constraint markers, evidence separation, disagreement preservation, uncertainty acknowledgment, and rubric points per 1,000 tokens.
 - **MCP-Ready Tool Surface & Nexus Flow Extensibility (`ai_app/mcp_tools.py`)**:
   - Transport-agnostic handlers for `list_perspectives`, `deliberate`, `compare_deliberations`, and `evaluate_deliberation`, plus `SymbolOntologyEntry` hooks for downstream symbolic platforms such as **Nexus Flow**.
 
@@ -79,22 +79,22 @@ pytest
 Run the evaluation benchmark CLI:
 
 ```bash
-python manage.py run_evaluation --provider fake --output datasets/latest_evaluation_report.json
+python manage.py run_evaluation --provider fake --output reports/latest_evaluation_report.json
 ```
 
 ---
 
-## Empirical Evaluation Findings (Baseline vs. Deliberation)
+## Synthetic Structural Benchmark
 
-Running `python3 verify_engine.py` (or `python manage.py run_evaluation`) executes all 4 benchmark cases in `datasets/eval_benchmark.json` across Strategies A, B, and C:
+Running `python3 verify_engine.py` (or `python manage.py run_evaluation --provider fake`) executes four benchmark cases with a deterministic fake provider. The table shows how the current structural rubric behaves across Strategies A, B, and C:
 
-| Strategy | Mean Overall Quality (0–5) | Disagreement Preservation (0–5) | Mean Tokens | Quality / 1k Tokens | Key Finding |
+| Strategy | Mean Structural Score (0–5) | Disagreement Marker Score (0–5) | Mean Tokens | Rubric Points / 1k Tokens | Observation |
 | :--- | :---: | :---: | :---: | :---: | :--- |
-| **`single_model_baseline`** | 1.91 | 2.00 | 377.5 | **5.06** | Most token-efficient (1.0x cost); best for routine queries with low ambiguity. |
-| **`independent_perspectives`** | 4.50 | 4.25 | 2,990.2 | 1.50 | Captures **94% of full deliberation quality** at **half the token cost** (7.9x vs. 15.7x baseline). |
-| **`deliberative_exchange`** | **4.77** | **5.00** | 5,942.0 | 0.80 | Highest trade-off & critique depth, but incurs a **15.7x token multiplier** with diminishing marginal gains over Strategy B. |
+| **`single_model_baseline`** | 1.91 | 2.00 | 377.5 | **5.06** | Lowest simulated token use. |
+| **`independent_perspectives`** | 4.50 | 4.25 | 2,990.2 | 1.50 | More rubric markers at 7.9x baseline tokens. |
+| **`deliberative_exchange`** | **4.77** | **5.00** | 5,942.0 | 0.80 | Highest rubric score at 15.7x baseline tokens. |
 
-*Note: Automated rubric and LLM-judge scores measure structural coverage, epistemic boundary clarity, and preserved trade-offs; they are heuristic indicators rather than objective truth.*
+The rubric rewards explicit disagreements, critiques, and uncertainty fields, so multi-perspective strategies have a structural advantage. The fake provider and its judge are not independent evidence of answer quality. Real model comparisons and independent human review are needed before claiming that one strategy is more useful.
 
 ---
 
@@ -129,7 +129,7 @@ Running `python3 verify_engine.py` (or `python manage.py run_evaluation`) execut
 - **`GET /ai/runs/`** (requires an authenticated session, or a configured API key plus `X-Perspective-User`)
 - **`GET /ai/runs/<run_id>/`** (enforces per-user ownership)
 - **`POST /ai/evaluate/`**: Score a completed `run_id` against domain rubrics and attach optional `human_review_notes`.
-- **`POST /ai/compare/`**: Run Strategies A, B, and C side-by-side on a question and return comparative cost/quality findings.
+- **`POST /ai/compare/`**: Run Strategies A, B, and C side-by-side on a question and return token use and structural rubric comparisons.
 
 ### 5. Legacy Prototype Endpoints (Preserved & Hardened)
 - **`GET /ai/roles/`**
@@ -144,5 +144,8 @@ Running `python3 verify_engine.py` (or `python manage.py run_evaluation`) execut
 
 - **Frontend Status**: The historical 2024 README referenced a separate `yogimathius/frontend` repository that is unavailable. Perspective Loom operates as a headless API, CLI evaluation runner, and MCP-ready library.
 - **Authentication & Isolation**: Set `REQUIRE_AUTH=True` and `PERSPECTIVE_LOOM_API_KEY=<secret>` in deployed environments. Private reads require an authenticated Django session or the configured API key. `X-Perspective-User` selects a record scope for a trusted API client; it does not authenticate an end user. The shared API key is a service credential and must stay server-side. This prototype does not yet provide public multi-user authentication.
+- **CSRF**: Mutating requests made with an authenticated Django session require a CSRF token. Header-key API clients do not use session cookies and may omit it.
+- **Retention**: `python manage.py prune_expired_records --dry-run` previews deletion; run without `--dry-run` to remove history and deliberation runs older than `DATA_RETENTION_DAYS` (default 90). This command is manual until you schedule it. `python manage.py reset_history` deletes all conversation history regardless of age.
+- **Inherited texts**: The archived [`datasets/spiritual_texts`](datasets/spiritual_texts/README.md) corpus is not used by the current engine or benchmark. Its manifest records checksums and source notices; reuse rights still need review before the texts enter a product or dataset.
 - **Database**: Uses SQLite (`db.sqlite3`) by default for zero-setup local development and CI, and supports PostgreSQL via `DATABASE_URL=postgresql://user:pass@host:5432/dbname`.
 - **Architecture & PR Details**: See [`ARCHITECTURE.md`](ARCHITECTURE.md) and [`PR_ROADMAP.md`](PR_ROADMAP.md).

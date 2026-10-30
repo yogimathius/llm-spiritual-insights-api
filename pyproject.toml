@@ -37,6 +37,7 @@ addopts = "-v --tb=short"
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+extend-exclude = ["ai_app/migrations"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "S"]
@@ -46,3 +47,5 @@ ignore = ["S101", "E501"]
 python_version = "3.12"
 ignore_missing_imports = true
 strict_optional = true
+check_untyped_defs = true
+exclude = ["ai_app/migrations/"]

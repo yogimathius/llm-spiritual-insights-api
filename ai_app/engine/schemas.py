@@ -233,9 +233,7 @@ class ExecutionTrace:
     trace_id: str
     provider: str
     model: str
-    started_at: str = field(
-        default_factory=lambda: datetime.now(UTC).isoformat()
-    )
+    started_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     completed_at: str | None = None
     total_latency_ms: float = 0.0
     total_prompt_tokens: int = 0

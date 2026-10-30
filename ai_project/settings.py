@@ -53,9 +53,7 @@ def _env_list(name: str, default: list[str]) -> list[str]:
 # Defaults to DEBUG=False for safety.
 DEBUG: bool = _env_bool("DJANGO_DEBUG", default=False)
 
-SECRET_KEY: str = os.getenv("DJANGO_SECRET_KEY") or (
-    "dev-ephemeral-" + secrets.token_urlsafe(48)
-)
+SECRET_KEY: str = os.getenv("DJANGO_SECRET_KEY") or ("dev-ephemeral-" + secrets.token_urlsafe(48))
 
 ALLOWED_HOSTS: list[str] = _env_list(
     "DJANGO_ALLOWED_HOSTS", ["localhost", "127.0.0.1", "testserver"]
@@ -70,9 +68,7 @@ DATA_RETENTION_DAYS: int = int(os.getenv("DATA_RETENTION_DAYS", "90"))
 DEFAULT_MODEL_PROVIDER: str = os.getenv("DEFAULT_MODEL_PROVIDER", "fake")
 DEFAULT_HOSTED_MODEL: str = os.getenv("DEFAULT_HOSTED_MODEL", "gpt-4o-mini")
 DEFAULT_OLLAMA_MODEL: str = os.getenv("DEFAULT_OLLAMA_MODEL", "llama3.2")
-OPENAI_BASE_URL: str = os.getenv(
-    "OPENAI_BASE_URL", "https://models.inference.ai.azure.com"
-)
+OPENAI_BASE_URL: str = os.getenv("OPENAI_BASE_URL", "https://models.inference.ai.azure.com")
 OLLAMA_HOST: str = os.getenv("OLLAMA_HOST", "http://localhost:11434")
 PROVIDER_TIMEOUT_SECONDS: float = float(os.getenv("PROVIDER_TIMEOUT_SECONDS", "30.0"))
 PROVIDER_MAX_RETRIES: int = int(os.getenv("PROVIDER_MAX_RETRIES", "2"))

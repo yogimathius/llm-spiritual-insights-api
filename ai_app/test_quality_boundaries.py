@@ -71,17 +71,36 @@ class RequestBoundaryTests(TestCase):
                 self.assertEqual(response.status_code, 400)
 
     @override_settings(PERSPECTIVE_LOOM_API_KEY="service-key")
-    def test_deliberation_rejects_wrong_numeric_field_types(self) -> None:
+    def test_deliberation_rejects_wrong_field_types(self) -> None:
+        invalid_fields: tuple[dict[str, object], ...] = (
+            {"max_perspectives": []},
+            {"perspectives": 42},
+        )
         for route in ("/ai/deliberate/", "/ai/deliberate/stream/"):
-            with self.subTest(route=route):
-                response = self.client.post(
-                    route,
-                    data=json.dumps({"question": "A question", "max_perspectives": []}),
-                    content_type="application/json",
-                    HTTP_X_API_KEY="service-key",
-                    HTTP_X_PERSPECTIVE_USER="alice",
-                )
-                self.assertEqual(response.status_code, 400)
+            for invalid_field in invalid_fields:
+                with self.subTest(route=route, invalid_field=invalid_field):
+                    response = self.client.post(
+                        route,
+                        data=json.dumps({"question": "A question", **invalid_field}),
+                        content_type="application/json",
+                        HTTP_X_API_KEY="service-key",
+                        HTTP_X_PERSPECTIVE_USER="alice",
+                    )
+                    self.assertEqual(response.status_code, 400)
+
+    @override_settings(PERSPECTIVE_LOOM_API_KEY="service-key")
+    def test_internal_type_error_is_not_reported_as_bad_input(self) -> None:
+        with patch(
+            "ai_app.views.deliberation.DeliberationEngine.run", side_effect=TypeError("internal")
+        ):
+            response = self.client.post(
+                "/ai/deliberate/",
+                data=json.dumps({"question": "A question"}),
+                content_type="application/json",
+                HTTP_X_API_KEY="service-key",
+                HTTP_X_PERSPECTIVE_USER="alice",
+            )
+        self.assertEqual(response.status_code, 500)
 
     @override_settings(PERSPECTIVE_LOOM_API_KEY="service-key")
     def test_unowned_run_is_not_readable_or_evaluable(self) -> None:
@@ -106,7 +125,9 @@ class RequestBoundaryTests(TestCase):
         )
         self.assertEqual(explicit.provider_name, "fake")
 
-    @override_settings(PERSPECTIVE_LOOM_API_KEY="service-key", DEFAULT_MODEL_PROVIDER="invalid-provider")
+    @override_settings(
+        PERSPECTIVE_LOOM_API_KEY="service-key", DEFAULT_MODEL_PROVIDER="invalid-provider"
+    )
     def test_comparison_uses_configured_provider_by_default(self) -> None:
         response = self.client.post(
             "/ai/compare/",
@@ -149,11 +170,14 @@ class RequestBoundaryTests(TestCase):
 class ProviderBoundaryTests(SimpleTestCase):
     def test_hosted_provider_retries_transient_failure(self) -> None:
         provider = OpenAICompatibleProvider(api_key="test-key")
-        with patch.object(
-            provider,
-            "_call_api",
-            side_effect=[TimeoutError("temporary"), ("answer", 12, 4)],
-        ), patch("ai_app.engine.providers.time.sleep"):
+        with (
+            patch.object(
+                provider,
+                "_call_api",
+                side_effect=[TimeoutError("temporary"), ("answer", 12, 4)],
+            ),
+            patch("ai_app.engine.providers.time.sleep"),
+        ):
             result = provider.complete([{"role": "user", "content": "hello"}], max_retries=1)
         self.assertEqual(result.content, "answer")
         self.assertEqual(result.retries, 1)
@@ -161,8 +185,9 @@ class ProviderBoundaryTests(SimpleTestCase):
 
     def test_hosted_provider_exhausts_retry_budget(self) -> None:
         provider = OpenAICompatibleProvider(api_key="test-key")
-        with patch.object(provider, "_call_api", side_effect=TimeoutError("temporary")) as call, patch(
-            "ai_app.engine.providers.time.sleep"
+        with (
+            patch.object(provider, "_call_api", side_effect=TimeoutError("temporary")) as call,
+            patch("ai_app.engine.providers.time.sleep"),
         ):
             with self.assertRaises(RuntimeError):
                 provider.complete([{"role": "user", "content": "hello"}], max_retries=1)
@@ -179,7 +204,10 @@ class ProviderBoundaryTests(SimpleTestCase):
                 return {"message": {"content": "local answer"}}
 
         provider = OllamaProvider(host="http://localhost:11434")
-        with patch("ollama.Client", ClientStub), patch("ollama.chat", side_effect=AssertionError("global client used")):
+        with (
+            patch("ollama.Client", ClientStub),
+            patch("ollama.chat", side_effect=AssertionError("global client used")),
+        ):
             result = provider._call_ollama(
                 messages=[{"role": "user", "content": "hello"}],
                 model="local-model",
@@ -249,7 +277,10 @@ class DialoguePrivacyTests(TestCase):
 
     def test_synthesis_failure_does_not_log_provider_exception_detail(self) -> None:
         service = Mock()
-        service.create_completion.side_effect = ["role response", RuntimeError("private-synth-98432")]
+        service.create_completion.side_effect = [
+            "role response",
+            RuntimeError("private-synth-98432"),
+        ]
         generator = DialogueGenerator(service)
         with self.assertLogs("ai_app", level="ERROR") as captured:
             with self.assertRaises(RuntimeError):
@@ -258,7 +289,10 @@ class DialoguePrivacyTests(TestCase):
 
     def test_stream_synthesis_failure_returns_generic_error(self) -> None:
         service = Mock()
-        service.create_completion.side_effect = ["role response", RuntimeError("private-synth-98432")]
+        service.create_completion.side_effect = [
+            "role response",
+            RuntimeError("private-synth-98432"),
+        ]
         generator = DialogueGenerator(service)
         with self.assertLogs("ai_app", level="ERROR") as captured:
             events = list(generator.stream_full_dialogue("question", False))

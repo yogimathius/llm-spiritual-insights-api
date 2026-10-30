@@ -48,6 +48,16 @@ def _parse_deliberation_request(data: dict[str, Any], username: str | None) -> D
     raw_evidence = data.get("evidence") or []
     if not isinstance(raw_evidence, list):
         raise ValueError("'evidence' must be a list of evidence objects.")
+    perspective_names = data.get("perspectives") or []
+    if not isinstance(perspective_names, list):
+        raise ValueError("'perspectives' must be a list of names.")
+
+    try:
+        max_perspectives = int(data.get("max_perspectives", 3))
+        timeout_seconds = float(data.get("timeout_seconds", 30.0))
+        max_retries = int(data.get("max_retries", 2))
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Numeric deliberation fields must be numbers.") from exc
 
     evidence_items: list[EvidenceItem] = []
     for idx, ev in enumerate(raw_evidence):
@@ -79,14 +89,14 @@ def _parse_deliberation_request(data: dict[str, Any], username: str | None) -> D
         question=str(data.get("question") or data.get("prompt") or "").strip(),
         strategy=str(data.get("strategy") or "deliberative_exchange").strip(),
         domain=str(data.get("domain") or "research_philosophy").strip(),
-        perspective_names=list(data.get("perspectives") or []),
+        perspective_names=perspective_names,
         evidence=evidence_items,
         provider_name=provider_name,
         model_name=data.get("model"),
-        max_perspectives=int(data.get("max_perspectives", 3)),
+        max_perspectives=max_perspectives,
         enable_critique_round=bool(data.get("enable_critique_round", True)),
-        timeout_seconds=float(data.get("timeout_seconds", 30.0)),
-        max_retries=int(data.get("max_retries", 2)),
+        timeout_seconds=timeout_seconds,
+        max_retries=max_retries,
         user_id=username,
         human_intervention_note=data.get("human_intervention_note"),
     )
@@ -211,7 +221,7 @@ def start_deliberation(request: HttpRequest) -> JsonResponse:
         return JsonResponse(result.to_dict(), status=200)
     except json.JSONDecodeError:
         return JsonResponse({"error": "Invalid JSON body"}, status=400)
-    except (ValueError, TypeError, KeyError) as exc:
+    except (ValueError, KeyError) as exc:
         return JsonResponse({"error": str(exc)}, status=400)
     except Exception as exc:
         logger.error(f"Error in start_deliberation: {type(exc).__name__}")
@@ -241,12 +251,10 @@ def stream_deliberation(request: HttpRequest):
                     _persist_run(result_obj, user_obj)
                 yield json.dumps(event) + "\n"
 
-        return StreamingHttpResponse(
-            _event_generator(), content_type="application/x-ndjson"
-        )
+        return StreamingHttpResponse(_event_generator(), content_type="application/x-ndjson")
     except json.JSONDecodeError:
         return JsonResponse({"error": "Invalid JSON body"}, status=400)
-    except (ValueError, TypeError, KeyError) as exc:
+    except (ValueError, KeyError) as exc:
         return JsonResponse({"error": str(exc)}, status=400)
 
 

@@ -31,8 +31,7 @@ class ResponseFormatter:
     def format_history(history_items: Any) -> list[dict[str, Any]]:
         history_list = list(history_items)
         history_data = [
-            model_to_dict(item, fields=["id", "prompt", "response"])
-            for item in history_list
+            model_to_dict(item, fields=["id", "prompt", "response"]) for item in history_list
         ]
 
         for i, item in enumerate(history_list):

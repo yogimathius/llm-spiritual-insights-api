@@ -114,7 +114,9 @@ class StandaloneEngineVerificationTests(unittest.TestCase):
 
         with patch.dict(os.environ, {"OPENAI_API_KEY": "sk-secret-key-123456"}):
             filt = SensitiveDataRedactionFilter()
-            rec = logging.LogRecord("ai_app", logging.INFO, __file__, 1, "Key=sk-secret-key-123456", (), None)
+            rec = logging.LogRecord(
+                "ai_app", logging.INFO, __file__, 1, "Key=sk-secret-key-123456", (), None
+            )
             filt.filter(rec)
             self.assertNotIn("sk-secret-key-123456", rec.msg)
             self.assertIn("[REDACTED_SECRET]", rec.msg)

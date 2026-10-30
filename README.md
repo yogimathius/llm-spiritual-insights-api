@@ -69,11 +69,14 @@ Run the zero-dependency standalone engine & evaluation verification suite:
 python3 verify_engine.py
 ```
 
-Run the full Django unit & integration test suite:
+Run the Django and engine suite with the CI branch-coverage floor:
 
 ```bash
-python manage.py test
-pytest
+pytest --cov=ai_app --cov-branch --cov-report=term:skip-covered --cov-fail-under=80
+ruff check .
+ruff format --check .
+mypy ai_app ai_project
+python manage.py makemigrations --check --dry-run
 ```
 
 Run the evaluation benchmark CLI:

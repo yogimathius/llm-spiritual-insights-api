@@ -32,6 +32,11 @@ jobs:
         run: |
           ruff check .
 
+      - name: Check Python formatting and types
+        run: |
+          ruff format --check .
+          mypy ai_app ai_project
+
       - name: Run dependency security audit
         run: |
           pip-audit -r requirements.txt
@@ -51,8 +56,8 @@ jobs:
           DJANGO_DEBUG: "False"
           DEFAULT_MODEL_PROVIDER: "fake"
         run: |
-          python manage.py test
-          pytest
+          python manage.py makemigrations --check --dry-run
+          pytest --cov=ai_app --cov-branch --cov-report=term:skip-covered --cov-fail-under=80
 
       - name: Execute reproducible evaluation benchmark
         env:

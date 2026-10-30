@@ -123,9 +123,7 @@ class DialogueGenerator:
 
         if collab_decision.get("should_collaborate"):
             try:
-                collaborator = LLMRole.objects.get(
-                    name=collab_decision["chosen_collaborator"]
-                )
+                collaborator = LLMRole.objects.get(name=collab_decision["chosen_collaborator"])
                 return dedent(
                     f"""
                     You are hosting a dialogue between {role.name} and {collaborator.name}.
@@ -147,9 +145,7 @@ class DialogueGenerator:
                     """
                 )
             except LLMRole.DoesNotExist:
-                logger.error(
-                    f"Collaborator not found: {collab_decision['chosen_collaborator']}"
-                )
+                logger.error(f"Collaborator not found: {collab_decision['chosen_collaborator']}")
                 return role.prompt_template
 
         return dedent(
@@ -166,16 +162,12 @@ class DialogueGenerator:
         """
         )
 
-    def generate_role_response(
-        self, role, user_prompt, dialogue_context="", should_debate=False
-    ):
+    def generate_role_response(self, role, user_prompt, dialogue_context="", should_debate=False):
         is_first = not bool(dialogue_context.strip())
         position_context = (
             "the first speaker " if is_first else "responding to previous perspectives "
         )
-        debate_instructions = (
-            FIRST_SPEAKER_INSTRUCTIONS if is_first else RESPONDER_INSTRUCTIONS
-        )
+        debate_instructions = FIRST_SPEAKER_INSTRUCTIONS if is_first else RESPONDER_INSTRUCTIONS
 
         template = DEBATE_PROMPT_TEMPLATE if should_debate else DIALOGUE_PROMPT_TEMPLATE
         role_prompt = template.format(
@@ -217,9 +209,7 @@ class DialogueGenerator:
         """Handle single role dialogue with optional collaboration"""
         role = LLMRole.objects.prefetch_related("collaborators").get(name=role_name)
         collaborators = role.collaborators.all()
-        collab_decision = self.get_collaboration_decision(
-            role, user_prompt, collaborators
-        )
+        collab_decision = self.get_collaboration_decision(role, user_prompt, collaborators)
         system_prompt = self.create_system_prompt(role, collab_decision)
 
         # Increase max_tokens for collaborative responses
@@ -235,9 +225,7 @@ class DialogueGenerator:
         )
 
         try:
-            clean_content = (
-                content.replace("```json\n", "").replace("\n```", "").strip()
-            )
+            clean_content = content.replace("```json\n", "").replace("\n```", "").strip()
 
             try:
                 parsed_data = json.loads(clean_content)
@@ -270,9 +258,7 @@ class DialogueGenerator:
         except Exception as e:
             logger.error("Error processing response: %s", type(e).__name__)
             return {
-                "response_data": [
-                    {"role": role.name, "response": "Error processing response"}
-                ],
+                "response_data": [{"role": role.name, "response": "Error processing response"}],
                 "collab_decision": collab_decision,
                 "role": role,
                 "raw_content": content,
@@ -294,9 +280,7 @@ class DialogueGenerator:
                     should_debate=should_debate,
                 )
 
-                conversation.append(
-                    {"turn": i + 1, "role": role.name, "response": role_response}
-                )
+                conversation.append({"turn": i + 1, "role": role.name, "response": role_response})
 
                 dialogue_context += f"\n\n{role.name}: {role_response}"
 
@@ -362,7 +346,10 @@ class DialogueGenerator:
 
             except Exception as e:
                 logger.error("Error getting response for %s: %s", role.name, type(e).__name__)
-                yield {"type": "error", "data": {"role": role.name, "error": "Response generation failed"}}
+                yield {
+                    "type": "error",
+                    "data": {"role": role.name, "error": "Response generation failed"},
+                }
                 continue
 
         # Generate synthesis after all responses
@@ -389,4 +376,7 @@ class DialogueGenerator:
 
             except Exception as e:
                 logger.error("Error generating synthesis: %s", type(e).__name__)
-                yield {"type": "error", "data": {"role": "Synthesis", "error": "Response generation failed"}}
+                yield {
+                    "type": "error",
+                    "data": {"role": "Synthesis", "error": "Response generation failed"},
+                }

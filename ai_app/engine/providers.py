@@ -43,9 +43,7 @@ def estimate_tokens(text: str) -> int:
 
 
 def estimate_cost_usd(model_name: str, prompt_tokens: int, completion_tokens: int) -> float:
-    in_rate, out_rate = MODEL_PRICING_PER_1K_TOKENS.get(
-        model_name, (0.00015, 0.00060)
-    )
+    in_rate, out_rate = MODEL_PRICING_PER_1K_TOKENS.get(model_name, (0.00015, 0.00060))
     return round((prompt_tokens / 1000.0) * in_rate + (completion_tokens / 1000.0) * out_rate, 6)
 
 
@@ -79,8 +77,7 @@ class ModelProvider(Protocol):
         timeout_seconds: float = 30.0,
         max_retries: int = 2,
         response_format: str | None = None,
-    ) -> ProviderResponse:
-        ...
+    ) -> ProviderResponse: ...
 
     def stream(
         self,
@@ -89,8 +86,7 @@ class ModelProvider(Protocol):
         model: str | None = None,
         temperature: float = 0.7,
         max_tokens: int = 500,
-    ) -> Iterator[str]:
-        ...
+    ) -> Iterator[str]: ...
 
 
 class FakeModelProvider:
@@ -130,7 +126,10 @@ class FakeModelProvider:
         user_text = "\n".join(m.get("content", "") for m in messages if m.get("role") == "user")
 
         for role_to_fail in self.fail_on_roles:
-            if role_to_fail.lower() in system_text.lower() or role_to_fail.lower() in user_text.lower():
+            if (
+                role_to_fail.lower() in system_text.lower()
+                or role_to_fail.lower() in user_text.lower()
+            ):
                 raise RuntimeError(f"Simulated provider failure for role '{role_to_fail}'")
 
         content = self._synthesize_deterministic_response(system_text, user_text, response_format)
@@ -200,7 +199,9 @@ class FakeModelProvider:
         if "Format your response exactly like this:" in system_text and "[" in system_text:
             role_name = "Perspective"
             if "You are hosting a dialogue between " in system_text:
-                header = system_text.split("You are hosting a dialogue between ", 1)[1].split(".", 1)[0]
+                header = system_text.split("You are hosting a dialogue between ", 1)[1].split(
+                    ".", 1
+                )[0]
                 parts = [p.strip() for p in header.split(" and ")]
                 primary = parts[0] if parts else "Primary"
                 secondary = parts[1] if len(parts) > 1 else "Collaborator"
@@ -488,16 +489,9 @@ class OpenAICompatibleProvider:
     ) -> None:
         self.provider_name = provider_name
         self.default_model = default_model
-        self.api_key = (
-            api_key
-            or os.getenv("GITHUB_TOKEN")
-            or os.getenv("OPENAI_API_KEY")
-            or ""
-        )
+        self.api_key = api_key or os.getenv("GITHUB_TOKEN") or os.getenv("OPENAI_API_KEY") or ""
         self.base_url = (
-            base_url
-            or os.getenv("OPENAI_BASE_URL")
-            or "https://models.inference.ai.azure.com"
+            base_url or os.getenv("OPENAI_BASE_URL") or "https://models.inference.ai.azure.com"
         )
         parsed_base_url = urlparse(self.base_url)
         if parsed_base_url.scheme not in {"http", "https"} or not parsed_base_url.netloc:
@@ -553,7 +547,9 @@ class OpenAICompatibleProvider:
                 if attempt < max_retries:
                     time.sleep(min(1.0 * (attempt + 1), 3.0))
 
-        raise RuntimeError(f"Provider '{self.provider_name}' failed after {max_retries + 1} attempts: {last_error}")
+        raise RuntimeError(
+            f"Provider '{self.provider_name}' failed after {max_retries + 1} attempts: {last_error}"
+        )
 
     def _call_api(
         self,
@@ -760,7 +756,9 @@ class OllamaProvider:
                 if piece:
                     yield piece
         except ImportError:
-            resp = self.complete(messages, model=used_model, temperature=temperature, max_tokens=max_tokens)
+            resp = self.complete(
+                messages, model=used_model, temperature=temperature, max_tokens=max_tokens
+            )
             yield resp.content
 
 

@@ -110,8 +110,12 @@ class FoundationSecurityTests(TestCase):
         role = LLMRole.objects.get(name="Quantum Philosopher")
         alice = User.objects.create(username="alice", email="alice@example.com")
         bob = User.objects.create(username="bob", email="bob@example.com")
-        History.objects.create(user=alice, role=role, prompt="Alice secret prompt", response="Alice reply")
-        History.objects.create(user=bob, role=role, prompt="Bob private prompt", response="Bob reply")
+        History.objects.create(
+            user=alice, role=role, prompt="Alice secret prompt", response="Alice reply"
+        )
+        History.objects.create(
+            user=bob, role=role, prompt="Bob private prompt", response="Bob reply"
+        )
 
         # Unscoped request must be rejected with 401
         unauth_resp = self.client.get("/ai/history/")
@@ -156,7 +160,9 @@ class FoundationSecurityTests(TestCase):
         ]
         for route, payload in mutating_routes:
             with self.subTest(route=route):
-                response = session_client.post(route, data=json.dumps(payload), content_type="application/json")
+                response = session_client.post(
+                    route, data=json.dumps(payload), content_type="application/json"
+                )
                 self.assertEqual(response.status_code, 403)
 
         session_client.cookies["csrftoken"] = "a" * 32
@@ -184,7 +190,9 @@ class FoundationSecurityTests(TestCase):
         old_history = History.objects.create(user=user, role=role, prompt="old", response="old")
         recent_history = History.objects.create(user=user, role=role, prompt="new", response="new")
         old_run = DeliberationRun.objects.create(run_id="old-run", trace_id="old-trace", user=user)
-        recent_run = DeliberationRun.objects.create(run_id="new-run", trace_id="new-trace", user=user)
+        recent_run = DeliberationRun.objects.create(
+            run_id="new-run", trace_id="new-trace", user=user
+        )
         expired_at = timezone.now() - timedelta(days=91)
         History.objects.filter(pk=old_history.pk).update(created_at=expired_at)
         DeliberationRun.objects.filter(pk=old_run.pk).update(created_at=expired_at)
@@ -440,9 +448,7 @@ class ApiAndMcpIntegrationTests(TestCase):
         )
         self.assertEqual(resp.status_code, 200)
         lines = [
-            json.loads(line.decode("utf-8"))
-            for line in resp.streaming_content
-            if line.strip()
+            json.loads(line.decode("utf-8")) for line in resp.streaming_content if line.strip()
         ]
         event_types = [e["type"] for e in lines]
         self.assertEqual(event_types[0], "run_started")
@@ -475,4 +481,6 @@ class ApiAndMcpIntegrationTests(TestCase):
             },
         )
         self.assertEqual(delib_out["status"], "completed")
-        self.assertEqual(delib_out["evidence_supplied"][0]["source_id"], "ONTOLOGY-SYM-LABYRINTH-01")
+        self.assertEqual(
+            delib_out["evidence_supplied"][0]["source_id"], "ONTOLOGY-SYM-LABYRINTH-01"
+        )

@@ -135,7 +135,9 @@ class DeliberationEvaluator:
         # 3. Disagreement & multi-perspective trade-off preservation (0.0 - 5.0)
         disagreements_count = len(run_result.synthesis.preserved_disagreements)
         critiques_count = len([c for c in run_result.critiques if c.status == "succeeded"])
-        analyses_count = len([a for a in run_result.independent_analyses if a.status == "succeeded"])
+        analyses_count = len(
+            [a for a in run_result.independent_analyses if a.status == "succeeded"]
+        )
 
         if disagreements_count == 0 and analyses_count == 0:
             # Single-model baseline naturally lacks cross-perspective disagreement tracking
@@ -158,9 +160,7 @@ class DeliberationEvaluator:
         uncertainty_score = min(
             5.0,
             round(
-                2.0
-                + min(1.75, uncertainties_count * 0.85)
-                + min(1.25, open_q_count * 0.65),
+                2.0 + min(1.75, uncertainties_count * 0.85) + min(1.25, open_q_count * 0.65),
                 2,
             ),
         )
@@ -185,9 +185,7 @@ class DeliberationEvaluator:
         if use_llm_judge:
             provider = self.judge_provider or get_model_provider("fake")
             judge_model = provider.default_model
-            rubric = DOMAIN_RUBRICS.get(
-                run_result.domain, DOMAIN_RUBRICS["research_philosophy"]
-            )
+            rubric = DOMAIN_RUBRICS.get(run_result.domain, DOMAIN_RUBRICS["research_philosophy"])
             j_resp = provider.complete(
                 messages=[
                     {

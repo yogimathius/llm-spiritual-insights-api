@@ -161,7 +161,9 @@ class ExperimentRunner:
                 "mean_tokens": avg_tokens,
                 "mean_latency_ms": round(agg["total_latency_ms"] / cnt, 2),
                 "total_estimated_cost_usd": round(agg["total_cost_usd"], 6),
-                "mean_quality_per_1k_tokens": round((avg_quality / max(1.0, avg_tokens)) * 1000.0, 2),
+                "mean_quality_per_1k_tokens": round(
+                    (avg_quality / max(1.0, avg_tokens)) * 1000.0, 2
+                ),
             }
 
         return {

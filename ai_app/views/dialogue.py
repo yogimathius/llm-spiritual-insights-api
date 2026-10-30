@@ -136,16 +136,12 @@ def stream_dialogue(request: HttpRequest):
 
             yield json.dumps({"type": "start", "data": {"prompt": user_prompt}}) + "\n"
 
-            for response in dialogue_generator.stream_full_dialogue(
-                user_prompt, should_debate
-            ):
+            for response in dialogue_generator.stream_full_dialogue(user_prompt, should_debate):
                 yield json.dumps(response) + "\n"
 
             yield json.dumps({"type": "complete", "data": None}) + "\n"
 
-        return StreamingHttpResponse(
-            response_stream(), content_type="application/x-ndjson"
-        )
+        return StreamingHttpResponse(response_stream(), content_type="application/x-ndjson")
 
     except (json.JSONDecodeError, ValueError):
         logger.warning("Invalid JSON payload received on stream_dialogue")

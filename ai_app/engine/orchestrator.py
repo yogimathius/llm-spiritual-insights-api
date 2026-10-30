@@ -330,7 +330,9 @@ class DeliberationEngine:
                     "summary": resp.content,
                     "convergent_agreements": [],
                     "preserved_disagreements": [],
-                    "uncertainties_and_limits": ["Single-model baseline without cross-perspective critique."],
+                    "uncertainties_and_limits": [
+                        "Single-model baseline without cross-perspective critique."
+                    ],
                     "open_questions": [],
                     "actionable_recommendations": [],
                     "epistemic_note": "Single-model baseline output.",
@@ -529,8 +531,7 @@ class DeliberationEngine:
                 "evidence_challenges (list), constructive_revision (string)."
             )
             user_prompt = (
-                f"Question: {request.question}\n\n"
-                f"Independent Peer Analyses:\n{peer_block}\n"
+                f"Question: {request.question}\n\nIndependent Peer Analyses:\n{peer_block}\n"
             )
             t0 = time.perf_counter()
             try:

@@ -87,13 +87,17 @@ def resolve_request_user(
     session_authenticated = bool(
         django_user is not None and getattr(django_user, "is_authenticated", False)
     )
-    if require_explicit_identity and not session_authenticated and not getattr(
-        settings, "PERSPECTIVE_LOOM_API_KEY", ""
+    if (
+        require_explicit_identity
+        and not session_authenticated
+        and not getattr(settings, "PERSPECTIVE_LOOM_API_KEY", "")
     ):
         return (
             None,
             JsonResponse(
-                {"error": "Private records require an authenticated session or configured API key."},
+                {
+                    "error": "Private records require an authenticated session or configured API key."
+                },
                 status=401,
             ),
         )

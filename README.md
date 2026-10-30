@@ -1,24 +1,41 @@
-# LLM Prototyping API
+# Perspective Loom
 
-A Django-based API for prototyping LLM interactions with different AI roles and personalities.
+**Multi-Perspective LLM Dialogue Engine**
+
+Perspective Loom is an exploratory Django API for structured conversations among configurable AI personas. Each role contributes a distinct perspective; the engine passes earlier responses into subsequent turns and can generate a final synthesis. A single-role workflow can also ask an LLM whether another configured role should collaborate.
+
+The original 2024 experiment focused on questions of consciousness, meaning, and contemplative traditions. Those examples remain part of the project history; the underlying dialogue pattern is not limited to spiritual topics.
+
+**Maturity:** Research prototype, last substantively updated in 2024. The code includes API implementations but has not been validated end-to-end for this rebrand. It is **not production-ready** and should not be presented as an autonomous multi-agent swarm or a benchmarked LLM platform.
+
+## What the prototype explores
+
+- **Role configuration:** persistent persona descriptions, prompt templates, collaboration preferences, and triggers.
+- **Perspective chaining:** sequential dialogue and debate modes in which each role sees preceding responses.
+- **Collaboration decisions:** an LLM-mediated choice to invite a second role for a single-role response.
+- **Synthesis:** a separate language-model call summarizes agreements, differences, and insights.
+- **Model backends:** GitHub Models through an OpenAI-compatible client and optional local Ollama.
+- **HTTP API:** Django endpoints for asking a role, generating dialogue, streaming dialogue events, listing roles, and reading history.
+
+The streamed endpoint emits newline-delimited dialogue events; it does not establish that token-by-token streaming is integrated or tested across the entire application.
 
 ## Prerequisites
 
 - Python 3.12+
 - Access to GitHub Models (for GITHUB_TOKEN)
-- PostgreSQL (optional - SQLite is default)
+- SQLite (configured by default)
 
-## Related Projects
+## Frontend status
 
-- [Frontend Repository](https://github.com/yogimathius/frontend) - React/Remix frontend for this API
+This repository contains the Django backend. Its original README referenced a separate React/Remix frontend at `yogimathius/frontend`, but that link is currently unavailable. Frontend operation has not been verified.
 
 ## Setup Instructions
 
 1. Clone the repository:
 
 ```bash
-git clone
-cd llm-prototyping
+git clone https://github.com/yogimathius/llm-spiritual-insights-api.git perspective-loom
+cd perspective-loom
 ```
 
 2. Create and activate virtual environment:
@@ -34,12 +51,13 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-4. Create `.env` file in project root:
+4. Configure a GitHub Models token in your shell (or run a local Ollama model and set `use_ollama: true` in requests):
 
-```env
-OPENAI_API_KEY=your_openai_api_key
-GITHUB_TOKEN=your_github_token
+```bash
+export GITHUB_TOKEN=your_github_models_token
 ```
+
+The current code reads the token from the process environment; it does not automatically load a `.env` file.
 
 5. Run database migrations:
 
@@ -52,7 +70,7 @@ python manage.py migrate
 Run the initialization script:
 
 ```bash
-python manage.py initialize_roles
+python manage.py initialize_llm_roles
 ```
 
 Create a mock user:
@@ -78,7 +96,7 @@ python manage.py runserver
 ```json
 {
   "prompt": "What does it mean when I dream of flying?",
-  "role": "Dream Interpreter"
+  "role": "Quantum Philosopher"
 }
 ```
 
@@ -86,8 +104,8 @@ python manage.py runserver
 
 ```json
 {
-  "response": "Dreams of flying often symbolize...",
-  "role": "Dream Interpreter"
+  "response": [{ "role": "Quantum Philosopher", "response": "An example response..." }],
+  "collaboration": null
 }
 ```
 
@@ -106,30 +124,19 @@ python manage.py runserver
 - **Success Response**:
 
 ```json
-[
+{
+  "roles": [
   {
-    "name": "Dream Interpreter",
-    "description": "I interpret dreams using various psychological and cultural perspectives."
-  },
-  {
-    "name": "Consciousness Explorer",
-    "description": "I explore consciousness and its various states and phenomena."
+    "name": "Quantum Philosopher",
+    "description": "Explores reality through the lens of quantum mechanics and consciousness."
   }
-]
+  ]
+}
 ```
 
-## Frontend Integration
+## Frontend integration
 
-1. Clone the frontend repository:
-
-```bash
-git clone git@github.com:yogimathius/frontend.git
-cd frontend
-npm install
-npm run dev
-```
-
-2. Ensure the API is running on `http://localhost:8000` (default Django development server)
+The backend can be explored independently through its API endpoints. The original frontend reference is unavailable, so no working frontend is claimed here.
 
 ## Development
 
@@ -138,11 +145,13 @@ npm run dev
 - CORS is enabled for localhost frontend development
 - Debug mode is enabled by default
 
-## Security Notes
+## Security and verification notes
 
-- Never commit `.env` file or sensitive credentials
-- The GITHUB_TOKEN should have minimal required permissions
-- In production, update CORS settings and security configurations
+- **Do not deploy the current code publicly as-is.** The historical development settings enable Django DEBUG, use a checked-in development secret, and include CSRF-exempt endpoints.
+- Conversation history is returned without an authentication guard in the current implementation. Add access control and data isolation before any public deployment.
+- Automated tests have not been implemented in `ai_app/tests.py`; validate the API workflows with a reproducible test harness before promoting this beyond a research prototype.
+- Never commit actual API tokens or an `.env` file. Use environment-scoped credentials with least privilege.
+- Review the included historical text datasets for redistribution rights before bundling them into a release.
 
 ## Contributing
 
@@ -152,9 +161,9 @@ npm run dev
 4. Push to the branch
 5. Create a Pull Request
 
-# AI Dialogue Project
+## Historical roadmap
 
-A Django/React application that facilitates dynamic conversations between different AI personas using OpenAI and Ollama.
+The notes below were retained from the original exploratory development period. Unchecked items are aspirations, not claims about completed functionality.
 
 ## Next Steps
 

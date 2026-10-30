@@ -1,7 +1,6 @@
-from textwrap import dedent
 import json
 import logging
-from typing import Dict
+from textwrap import dedent
 
 from ai_app.models.llm_role import LLMRole
 from ai_app.services.model_rotation import OpenAIService
@@ -214,7 +213,7 @@ class DialogueGenerator:
             max_tokens=400,
         )
 
-    def process_single_role(self, role_name: str, user_prompt: str) -> Dict:
+    def process_single_role(self, role_name: str, user_prompt: str) -> dict:
         """Handle single role dialogue with optional collaboration"""
         role = LLMRole.objects.prefetch_related("collaborators").get(name=role_name)
         collaborators = role.collaborators.all()
@@ -279,7 +278,7 @@ class DialogueGenerator:
                 "raw_content": content,
             }
 
-    def process_full_dialogue(self, user_prompt: str, should_debate: bool) -> Dict:
+    def process_full_dialogue(self, user_prompt: str, should_debate: bool) -> dict:
         """Handle multi-role dialogue with synthesis"""
         roles = list(LLMRole.objects.all())
 

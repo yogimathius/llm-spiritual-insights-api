@@ -1,238 +1,148 @@
 # Perspective Loom
 
-**Multi-Perspective LLM Dialogue Engine**
+**Multi-Perspective LLM Deliberation & Evaluation Engine**
 
-Perspective Loom is an exploratory Django API for structured conversations among configurable AI personas. Each role contributes a distinct perspective; the engine passes earlier responses into subsequent turns and can generate a final synthesis. A single-role workflow can also ask an LLM whether another configured role should collaborate.
+Perspective Loom is a modular deliberation and evaluation engine that investigates a central research question:
 
-The original 2024 experiment focused on questions of consciousness, meaning, and contemplative traditions. Those examples remain part of the project history; the underlying dialogue pattern is not limited to spiritual topics.
+> **Can structured multi-perspective deliberation produce more useful, accurate, and insightful results than a single capable language model—and under what conditions?**
 
-**Maturity:** Research prototype, last substantively updated in 2024. The code includes API implementations but has not been validated end-to-end for this rebrand. It is **not production-ready** and should not be presented as an autonomous multi-agent swarm or a benchmarked LLM platform.
+Rather than assuming multi-agent debate is always superior, Perspective Loom executes controlled strategies side-by-side, separates supplied evidence from interpretive claims, preserves meaningful disagreements, and records full execution traces (latency, token usage, estimated cost, and rubric scorecards) so trade-offs can be audited empirically.
 
-## What the prototype explores
+---
 
-- **Role configuration:** persistent persona descriptions, prompt templates, collaboration preferences, and triggers.
-- **Perspective chaining:** sequential dialogue and debate modes in which each role sees preceding responses.
-- **Collaboration decisions:** an LLM-mediated choice to invite a second role for a single-role response.
-- **Synthesis:** a separate language-model call summarizes agreements, differences, and insights.
-- **Model backends:** GitHub Models through an OpenAI-compatible client and optional local Ollama.
-- **HTTP API:** Django endpoints for asking a role, generating dialogue, streaming dialogue events, listing roles, and reading history.
+## Core Capabilities
 
-The streamed endpoint emits newline-delimited dialogue events; it does not establish that token-by-token streaming is integrated or tested across the entire application.
+- **Three Controlled Deliberation Strategies (`ai_app/engine/orchestrator.py`)**:
+  - **Strategy A (`single_model_baseline`)**: Direct single-pass answer from one model.
+  - **Strategy B (`independent_perspectives`)**: Concurrent independent analyses across selected perspectives followed by structured synthesis.
+  - **Strategy C (`deliberative_exchange`)**: Concurrent independent analyses, a controlled cross-examination critique round, and structured synthesis.
+- **Versioned Perspective Registry (`ai_app/engine/perspectives.py`)**:
+  - **Software Architecture & Engineering**: `Systems Pragmatist`, `Security & Trust Auditor`, `Domain Boundary Architect`.
+  - **Research & Epistemology**: `Empirical Epistemologist`.
+  - **Preserved Historical Contemplative Perspectives**: `Christian Mystic`, `Quantum Philosopher`, `Alchemist`, `Existential Navigator`, `Void Explorer`, `Time Weaver`, `Desert Father`, `Sufi Mystic`, `Vedantic Sage`.
+  - Every perspective is defined as an explicit interpretive methodology with stated boundaries and epistemic types (`empirical_evidence`, `architectural_tradeoff`, `philosophical_inquiry`, `symbolic_metaphor`, `contemplative_tradition`)—never as an authoritative personality presenting speculation as established fact.
+- **Model-Provider Abstraction (`ai_app/engine/providers.py`)**:
+  - `FakeModelProvider`: Deterministic, zero-cost offline provider for unit tests, CI, and reproducible structural benchmarks.
+  - `OpenAICompatibleProvider`: Supports GitHub Models (`https://models.inference.ai.azure.com`) and OpenAI with configurable timeouts and bounded retries.
+  - `OllamaProvider`: Supports local Ollama models while respecting per-request model configuration and avoiding stdout leaks.
+- **Reproducible Evaluation Laboratory (`ai_app/evaluation/`)**:
+  - Version-controlled benchmark dataset (`datasets/eval_benchmark.json`) spanning software architecture, philosophy of science, and symbolic interpretation.
+  - Domain-specific rubrics scoring constraint satisfaction, evidence separation, disagreement preservation, uncertainty acknowledgment, and quality-per-1,000-tokens.
+- **MCP-Ready Tool Surface & Nexus Flow Extensibility (`ai_app/mcp_tools.py`)**:
+  - Transport-agnostic handlers for `list_perspectives`, `deliberate`, `compare_deliberations`, and `evaluate_deliberation`, plus `SymbolOntologyEntry` hooks for downstream symbolic platforms such as **Nexus Flow**.
 
-## Prerequisites
+---
 
-- Python 3.12+
-- Access to GitHub Models (for GITHUB_TOKEN)
-- SQLite (configured by default)
+## Quickstart & Clean Setup
 
-## Frontend status
-
-This repository contains the Django backend. Its original README referenced a separate React/Remix frontend at `yogimathius/frontend`, but that link is currently unavailable. Frontend operation has not been verified.
-
-## Setup Instructions
-
-1. Clone the repository:
-
-```bash
-git clone https://github.com/yogimathius/llm-spiritual-insights-api.git perspective-loom
-cd perspective-loom
-```
-
-2. Create and activate virtual environment:
+### 1. Create a virtual environment and install dependencies
 
 ```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+python3 -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements-dev.txt
 ```
 
-3. Install dependencies:
+### 2. Configure environment variables
+
+Copy `.env.example` to `.env`:
 
 ```bash
-pip install -r requirements.txt
+cp .env.example .env
 ```
 
-4. Configure a GitHub Models token in your shell (or run a local Ollama model and set `use_ollama: true` in requests):
+By default, `DEFAULT_MODEL_PROVIDER=fake` and `DJANGO_DEBUG=False`, allowing the entire test suite and evaluation harness to run deterministically without paid API credentials. To run against live models, set `GITHUB_TOKEN` / `OPENAI_API_KEY` (`DEFAULT_MODEL_PROVIDER=github_models`) or run a local Ollama server (`DEFAULT_MODEL_PROVIDER=ollama`).
 
-```bash
-export GITHUB_TOKEN=your_github_models_token
-```
-
-The current code reads the token from the process environment; it does not automatically load a `.env` file.
-
-5. Run database migrations:
+### 3. Run database migrations and initialize perspectives
 
 ```bash
 python manage.py migrate
-```
-
-6. Initialize LLM roles and users:
-
-Run the initialization script:
-
-```bash
 python manage.py initialize_llm_roles
 ```
 
-Create a mock user:
+### 4. Run verification & test suites
+
+Run the zero-dependency standalone engine & evaluation verification suite:
 
 ```bash
-python manage.py initialize_mock_user
+python3 verify_engine.py
 ```
 
-7. Start the development server:
+Run the full Django unit & integration test suite:
 
 ```bash
-python manage.py runserver
+python manage.py test
+pytest
 ```
 
-## API Endpoints
+Run the evaluation benchmark CLI:
 
-### Ask Role
-
-- **URL**: `/ai/ask-role/`
-- **Method**: `POST`
-- **Body**:
-
-```json
-{
-  "prompt": "What does it mean when I dream of flying?",
-  "role": "Quantum Philosopher"
-}
+```bash
+python manage.py run_evaluation --provider fake --output datasets/latest_evaluation_report.json
 ```
 
-- **Success Response**:
+---
 
+## Empirical Evaluation Findings (Baseline vs. Deliberation)
+
+Running `python3 verify_engine.py` (or `python manage.py run_evaluation`) executes all 4 benchmark cases in `datasets/eval_benchmark.json` across Strategies A, B, and C:
+
+| Strategy | Mean Overall Quality (0–5) | Disagreement Preservation (0–5) | Mean Tokens | Quality / 1k Tokens | Key Finding |
+| :--- | :---: | :---: | :---: | :---: | :--- |
+| **`single_model_baseline`** | 1.91 | 2.00 | 377.5 | **5.06** | Most token-efficient (1.0x cost); best for routine queries with low ambiguity. |
+| **`independent_perspectives`** | 4.50 | 4.25 | 2,990.2 | 1.50 | Captures **94% of full deliberation quality** at **half the token cost** (7.9x vs. 15.7x baseline). |
+| **`deliberative_exchange`** | **4.77** | **5.00** | 5,942.0 | 0.80 | Highest trade-off & critique depth, but incurs a **15.7x token multiplier** with diminishing marginal gains over Strategy B. |
+
+*Note: Automated rubric and LLM-judge scores measure structural coverage, epistemic boundary clarity, and preserved trade-offs; they are heuristic indicators rather than objective truth.*
+
+---
+
+## HTTP API Reference
+
+### 1. List or Register Perspectives
+- **`GET /ai/perspectives/?domain=software_architecture&include_historical=true`**
+- **`POST /ai/perspectives/`**: Register a custom `PerspectiveSpec`.
+
+### 2. Start a Structured Deliberation
+- **`POST /ai/deliberate/`**
 ```json
 {
-  "response": [{ "role": "Quantum Philosopher", "response": "An example response..." }],
-  "collaboration": null
-}
-```
-
-- **Error Response**:
-
-```json
-{
-  "error": "Missing prompt or role"
-}
-```
-
-### List Roles
-
-- **URL**: `/ai/roles/`
-- **Method**: `GET`
-- **Success Response**:
-
-```json
-{
-  "roles": [
-  {
-    "name": "Quantum Philosopher",
-    "description": "Explores reality through the lens of quantum mechanics and consciousness."
-  }
+  "question": "Should our 3-person team adopt microservices or keep a modular Django monolith with PostgreSQL?",
+  "strategy": "deliberative_exchange",
+  "domain": "software_architecture",
+  "perspectives": ["Systems Pragmatist", "Security & Trust Auditor", "Domain Boundary Architect"],
+  "evidence": [
+    {
+      "source_id": "EV-1",
+      "title": "Traffic Profile",
+      "content": "2,000 requests/day with 5-15s LLM latency."
+    }
   ]
 }
 ```
 
-## Frontend integration
+### 3. Stream Deliberation Progress (NDJSON)
+- **`POST /ai/deliberate/stream/`**: Streams newline-delimited JSON events (`run_started`, `perspectives_selected`, `perspective_analysis`, `perspective_critique`, `synthesis_completed`, `complete`).
 
-The backend can be explored independently through its API endpoints. The original frontend reference is unavailable, so no working frontend is claimed here.
+### 4. Inspect & Evaluate Persisted Runs
+- **`GET /ai/runs/`** (requires an authenticated session, or a configured API key plus `X-Perspective-User`)
+- **`GET /ai/runs/<run_id>/`** (enforces per-user ownership)
+- **`POST /ai/evaluate/`**: Score a completed `run_id` against domain rubrics and attach optional `human_review_notes`.
+- **`POST /ai/compare/`**: Run Strategies A, B, and C side-by-side on a question and return comparative cost/quality findings.
 
-## Development
+### 5. Legacy Prototype Endpoints (Preserved & Hardened)
+- **`GET /ai/roles/`**
+- **`POST /ai/ask-role/`** (no longer crashes if `testuser` is absent; scopes history to requesting user)
+- **`POST /ai/full-dialogue/`**
+- **`POST /ai/stream-dialogue/`**
+- **`GET /ai/history/`** (requires an authenticated session, or a configured API key plus `X-Perspective-User`)
 
-- The API uses Django's built-in development server
-- SQLite database is used by default
-- CORS is enabled for localhost frontend development
-- Debug mode is enabled by default
+---
 
-## Security and verification notes
+## Security, Frontend Status & Known Limitations
 
-- **Do not deploy the current code publicly as-is.** The historical development settings enable Django DEBUG, use a checked-in development secret, and include CSRF-exempt endpoints.
-- Conversation history is returned without an authentication guard in the current implementation. Add access control and data isolation before any public deployment.
-- Automated tests have not been implemented in `ai_app/tests.py`; validate the API workflows with a reproducible test harness before promoting this beyond a research prototype.
-- Never commit actual API tokens or an `.env` file. Use environment-scoped credentials with least privilege.
-- Review the included historical text datasets for redistribution rights before bundling them into a release.
-
-## Contributing
-
-1. Fork the repository
-2. Create your feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
-
-## Historical roadmap
-
-The notes below were retained from the original exploratory development period. Unchecked items are aspirations, not claims about completed functionality.
-
-## Next Steps
-
-### 1. Randomize Full Dialogue Order
-
-- [ ] Add randomization to role selection in DialogueGenerator
-- [ ] Create method to shuffle roles while maintaining context
-- [ ] Add option to specify "first speaker" roles
-- [ ] Consider weighted randomization based on role relevance
-
-### 2. Enhance Ollama Integration
-
-- [ ] Add Ollama controls to frontend
-  - [ ] Toggle for Ollama/OpenAI
-  - [ ] Model selection dropdown
-  - [ ] Streaming controls
-- [ ] Implement streaming response handler
-  - [ ] Add loading states for stream chunks
-  - [ ] Show real-time token generation
-  - [ ] Add stop/cancel functionality
-- [ ] Model management
-  - [ ] List available Ollama models
-  - [ ] Show model status/availability
-  - [ ] Model performance metrics
-
-### 3. Context Enhancement with History
-
-- [ ] Create conversation memory system
-  - [ ] Define memory structure
-  - [ ] Set memory limits
-  - [ ] Implement cleanup strategies
-- [ ] Add history retrieval features
-  - [ ] Filter by role/topic
-  - [ ] Search functionality
-  - [ ] Relevance scoring
-- [ ] Implement context injection
-  - [ ] Add relevant history to prompts
-  - [ ] Allow manual history selection
-  - [ ] Create context window management
-
-### Future Considerations
-
-1. **Performance Optimization**
-
-   - [ ] Caching frequently used contexts
-   - [ ] Batch processing for history analysis
-   - [ ] Efficient memory management
-
-2. **User Experience**
-
-   - [ ] Visual feedback during streaming
-   - [ ] Progress indicators
-   - [ ] Response quality metrics
-
-3. **Advanced Features**
-   - [ ] Role relationship mapping
-   - [ ] Dynamic context weighting
-   - [ ] Conversation branching
-
-### Testing Strategy
-
-- [ ] Unit tests for randomization
-- [ ] Integration tests for streaming
-- [ ] Performance tests for history retrieval
-- [ ] End-to-end tests for full dialogue flow
-
-### Documentation Needs
-
-- [ ] API documentation updates
-- [ ] Streaming implementation guide
-- [ ] History integration examples
-- [ ] Configuration options
+- **Frontend Status**: The historical 2024 README referenced a separate `yogimathius/frontend` repository that is unavailable. Perspective Loom operates as a headless API, CLI evaluation runner, and MCP-ready library.
+- **Authentication & Isolation**: Set `REQUIRE_AUTH=True` and `PERSPECTIVE_LOOM_API_KEY=<secret>` in deployed environments. Private reads require an authenticated Django session or the configured API key. `X-Perspective-User` selects a record scope for a trusted API client; it does not authenticate an end user. The shared API key is a service credential and must stay server-side. This prototype does not yet provide public multi-user authentication.
+- **Database**: Uses SQLite (`db.sqlite3`) by default for zero-setup local development and CI, and supports PostgreSQL via `DATABASE_URL=postgresql://user:pass@host:5432/dbname`.
+- **Architecture & PR Details**: See [`ARCHITECTURE.md`](ARCHITECTURE.md) and [`PR_ROADMAP.md`](PR_ROADMAP.md).

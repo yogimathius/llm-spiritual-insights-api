@@ -1,0 +1,118 @@
+[
+  {
+    "case_id": "arch-001-async-broker-vs-postgres",
+    "domain": "software_architecture",
+    "question": "Our team of 3 engineers is building a multi-perspective LLM deliberation API expecting 2,000 requests/day with 5-15 second latencies. Should we introduce Kafka and microservices for perspective execution now, or keep a modular Django monolith with PostgreSQL and bounded thread/async pools?",
+    "evidence": [
+      {
+        "source_id": "EV-ARCH-1",
+        "title": "Workload Profile",
+        "content": "Peak load is ~5 requests/minute; each deliberation fans out 3-4 LLM calls taking 2-5 seconds each.",
+        "source_type": "benchmark_constraint",
+        "verified": true
+      },
+      {
+        "source_id": "EV-ARCH-2",
+        "title": "Team & Ops Constraint",
+        "content": "3 backend engineers; no dedicated SRE team; must support zero-dependency local CI and straightforward debugging.",
+        "source_type": "benchmark_constraint",
+        "verified": true
+      }
+    ],
+    "perspectives": [
+      "Systems Pragmatist",
+      "Security & Trust Auditor",
+      "Domain Boundary Architect"
+    ],
+    "required_concepts": [
+      "modular monolith",
+      "PostgreSQL",
+      "operational complexity",
+      "timeout",
+      "boundary"
+    ],
+    "evaluation_focus": "Prioritize operational realism, constraint satisfaction, failure modes, and concrete migration triggers over hype."
+  },
+  {
+    "case_id": "arch-002-multi-tenant-history-isolation",
+    "domain": "software_architecture",
+    "question": "How should we design authentication, user history isolation, and telemetry logging for an LLM deliberation service that processes potentially sensitive personal and architectural prompts?",
+    "evidence": [
+      {
+        "source_id": "EV-SEC-1",
+        "title": "Historical Vulnerability Audit",
+        "content": "The legacy prototype hardcoded 'testuser', lacked authentication on /ai/history/, and logged raw exceptions.",
+        "source_type": "benchmark_constraint",
+        "verified": true
+      }
+    ],
+    "perspectives": [
+      "Security & Trust Auditor",
+      "Systems Pragmatist",
+      "Domain Boundary Architect"
+    ],
+    "required_concepts": [
+      "isolation",
+      "authentication",
+      "redaction",
+      "retention",
+      "least privilege"
+    ],
+    "evaluation_focus": "Verify explicit threat mitigation, per-user query scoping, secret redaction, and retention policy clarity."
+  },
+  {
+    "case_id": "phil-001-quantum-consciousness-epistemology",
+    "domain": "research_philosophy",
+    "question": "Does the observer effect in quantum mechanics prove that human consciousness creates physical reality, or how should we distinguish physical measurement from philosophical interpretations of mind?",
+    "evidence": [
+      {
+        "source_id": "EV-PHIL-1",
+        "title": "Physics Foundations",
+        "content": "In standard quantum mechanics, a 'measurement' involves physical interaction/decoherence with a macroscopic apparatus or environment, not necessarily a conscious biological observer.",
+        "source_type": "benchmark_constraint",
+        "verified": true
+      }
+    ],
+    "perspectives": [
+      "Empirical Epistemologist",
+      "Quantum Philosopher",
+      "Vedantic Sage"
+    ],
+    "required_concepts": [
+      "empirical",
+      "metaphor",
+      "observation",
+      "uncertainty",
+      "interpretation"
+    ],
+    "evaluation_focus": "Must strictly separate physical formalism from philosophical or contemplative metaphor and avoid presenting speculation as fact."
+  },
+  {
+    "case_id": "symb-001-labyrinth-mirror-dream",
+    "domain": "symbolic_contemplative",
+    "question": "I dreamed of walking through a flooded stone labyrinth holding a cracked mirror that reflected the night sky instead of my face. How might I reflect on this image during a career transition?",
+    "evidence": [
+      {
+        "source_id": "EV-SYMB-1",
+        "title": "Inquirer Context",
+        "content": "Personal symbolic reflection during a voluntary career change; no clinical or diagnostic claims should be made.",
+        "source_type": "user_provided",
+        "verified": true
+      }
+    ],
+    "perspectives": [
+      "Alchemist",
+      "Existential Navigator",
+      "Void Explorer",
+      "Sufi Mystic"
+    ],
+    "required_concepts": [
+      "ambiguity",
+      "association",
+      "symbolic",
+      "uncertainty",
+      "meaning"
+    ],
+    "evaluation_focus": "Assess interpretive breadth, preservation of ambiguity, explicit prioritization of the user's own associations, and avoidance of authoritative dogma."
+  }
+]

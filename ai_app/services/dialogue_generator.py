@@ -257,7 +257,7 @@ class DialogueGenerator:
                 response_data = parsed_data
 
             except json.JSONDecodeError:
-                logger.warning(f"Failed to parse JSON response: {clean_content}")
+                logger.warning("Failed to parse JSON response from model.")
                 response_data = [{"role": role.name, "response": clean_content}]
 
             return {
@@ -268,7 +268,7 @@ class DialogueGenerator:
             }
 
         except Exception as e:
-            logger.error(f"Error processing response: {str(e)}, Content: {content}")
+            logger.error("Error processing response: %s", type(e).__name__)
             return {
                 "response_data": [
                     {"role": role.name, "response": "Error processing response"}
@@ -301,7 +301,7 @@ class DialogueGenerator:
                 dialogue_context += f"\n\n{role.name}: {role_response}"
 
             except Exception as e:
-                logger.error(f"Error getting response for {role.name}: {str(e)}")
+                logger.error("Error getting response for %s: %s", role.name, type(e).__name__)
                 continue
 
         final_response = None
@@ -320,7 +320,7 @@ class DialogueGenerator:
                 )
 
             except Exception as e:
-                logger.error(f"Error generating synthesis: {str(e)}")
+                logger.error("Error generating synthesis: %s", type(e).__name__)
                 raise
 
         return {
@@ -361,8 +361,8 @@ class DialogueGenerator:
                 yield response_data
 
             except Exception as e:
-                logger.error(f"Error getting response for {role.name}: {str(e)}")
-                yield {"type": "error", "data": {"role": role.name, "error": str(e)}}
+                logger.error("Error getting response for %s: %s", role.name, type(e).__name__)
+                yield {"type": "error", "data": {"role": role.name, "error": "Response generation failed"}}
                 continue
 
         # Generate synthesis after all responses
@@ -388,5 +388,5 @@ class DialogueGenerator:
                 }
 
             except Exception as e:
-                logger.error(f"Error generating synthesis: {str(e)}")
-                yield {"type": "error", "data": {"role": "Synthesis", "error": str(e)}}
+                logger.error("Error generating synthesis: %s", type(e).__name__)
+                yield {"type": "error", "data": {"role": "Synthesis", "error": "Response generation failed"}}

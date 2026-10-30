@@ -4,6 +4,7 @@ import logging
 from django.http import HttpRequest, JsonResponse, StreamingHttpResponse
 from django.views.decorators.http import require_POST
 
+from ai_app.http import load_json_object
 from ai_app.models.history import History
 from ai_app.models.llm_role import LLMRole
 from ai_app.security import csrf_protect_session, resolve_request_user
@@ -24,7 +25,7 @@ def ask_role(request: HttpRequest) -> JsonResponse:
         if not request.body:
             return JsonResponse({"error": "Empty request body"}, status=400)
 
-        data = json.loads(request.body)
+        data = load_json_object(request.body)
         user_prompt = str(data.get("prompt") or "").strip()
         role_name = str(data.get("role") or "").strip()
         use_ollama = bool(data.get("use_ollama", False))
@@ -59,7 +60,7 @@ def ask_role(request: HttpRequest) -> JsonResponse:
             }
         )
 
-    except json.JSONDecodeError:
+    except (json.JSONDecodeError, ValueError):
         logger.warning("Invalid JSON payload received on ask_role")
         return JsonResponse({"error": "Invalid JSON format"}, status=400)
     except LLMRole.DoesNotExist:
@@ -80,7 +81,7 @@ def full_dialogue(request: HttpRequest) -> JsonResponse:
         if not request.body:
             return JsonResponse({"error": "Empty request body"}, status=400)
 
-        data = json.loads(request.body)
+        data = load_json_object(request.body)
         user_prompt = str(data.get("prompt") or "").strip()
         should_debate = bool(data.get("debate", False))
         use_ollama = bool(data.get("use_ollama", False))
@@ -103,7 +104,7 @@ def full_dialogue(request: HttpRequest) -> JsonResponse:
             }
         )
 
-    except json.JSONDecodeError:
+    except (json.JSONDecodeError, ValueError):
         logger.warning("Invalid JSON payload received on full_dialogue")
         return JsonResponse({"error": "Invalid JSON"}, status=400)
     except Exception as exc:
@@ -122,7 +123,7 @@ def stream_dialogue(request: HttpRequest):
         if not request.body:
             return JsonResponse({"error": "Empty request body"}, status=400)
 
-        data = json.loads(request.body)
+        data = load_json_object(request.body)
         user_prompt = str(data.get("prompt") or "").strip()
         should_debate = bool(data.get("debate", False))
         use_ollama = bool(data.get("use_ollama", False))
@@ -146,7 +147,7 @@ def stream_dialogue(request: HttpRequest):
             response_stream(), content_type="application/x-ndjson"
         )
 
-    except json.JSONDecodeError:
+    except (json.JSONDecodeError, ValueError):
         logger.warning("Invalid JSON payload received on stream_dialogue")
         return JsonResponse({"error": "Invalid JSON"}, status=400)
     except Exception as exc:

@@ -703,9 +703,9 @@ class OllamaProvider:
         timeout_seconds: float,
     ) -> str:
         try:
-            from ollama import chat  # type: ignore
+            from ollama import Client  # type: ignore
 
-            result = chat(
+            result = Client(host=self.host, timeout=timeout_seconds).chat(
                 model=model,
                 messages=messages,
                 stream=False,
@@ -779,7 +779,7 @@ def get_model_provider(
         return FakeModelProvider(model_name=model_name)
     if resolved in {"openai", "github_models", "hosted"}:
         return OpenAICompatibleProvider(
-            default_model=model_name or os.getenv("DEFAULT_HOSTED_MODEL", "gpt-4o-mini"),
+            default_model=model_name or os.getenv("DEFAULT_HOSTED_MODEL") or "gpt-4o-mini",
             provider_name=resolved,
         )
     raise ValueError(

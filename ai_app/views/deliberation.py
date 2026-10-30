@@ -17,6 +17,7 @@ import json
 import logging
 from typing import Any
 
+from django.conf import settings
 from django.http import HttpRequest, JsonResponse, StreamingHttpResponse
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
@@ -35,6 +36,7 @@ from ai_app.engine.schemas import (
 )
 from ai_app.evaluation.evaluator import DeliberationEvaluator
 from ai_app.evaluation.runner import ExperimentRunner
+from ai_app.http import load_json_object
 from ai_app.models.deliberation import DeliberationRun
 from ai_app.models.llm_role import LLMRole
 from ai_app.security import check_api_key_if_required, csrf_protect_session, resolve_request_user
@@ -70,7 +72,7 @@ def _parse_deliberation_request(data: dict[str, Any], username: str | None) -> D
 
     use_ollama = bool(data.get("use_ollama", False))
     provider_name = str(
-        data.get("provider") or ("ollama" if use_ollama else "fake")
+        data.get("provider") or ("ollama" if use_ollama else settings.DEFAULT_MODEL_PROVIDER)
     ).strip()
 
     req = DeliberationRequest(
@@ -139,7 +141,7 @@ def perspectives_view(request: HttpRequest) -> JsonResponse:
         return auth_err
 
     try:
-        data = json.loads(request.body or b"{}")
+        data = load_json_object(request.body or b"{}")
         spec = PerspectiveSpec(
             slug=str(data.get("slug") or "").strip(),
             name=str(data.get("name") or "").strip(),
@@ -185,7 +187,7 @@ def perspectives_view(request: HttpRequest) -> JsonResponse:
             },
         )
         return JsonResponse({"perspective": spec.to_dict()}, status=201)
-    except (ValueError, KeyError, json.JSONDecodeError) as exc:
+    except (ValueError, TypeError, KeyError, json.JSONDecodeError) as exc:
         return JsonResponse({"error": str(exc)}, status=400)
 
 
@@ -200,7 +202,7 @@ def start_deliberation(request: HttpRequest) -> JsonResponse:
     try:
         if not request.body:
             return JsonResponse({"error": "Empty request body"}, status=400)
-        data = json.loads(request.body)
+        data = load_json_object(request.body)
         delib_req = _parse_deliberation_request(data, user_obj.username)
         provider = get_model_provider(delib_req.provider_name, model_name=delib_req.model_name)
         engine = DeliberationEngine(registry=DEFAULT_REGISTRY, provider=provider)
@@ -209,7 +211,7 @@ def start_deliberation(request: HttpRequest) -> JsonResponse:
         return JsonResponse(result.to_dict(), status=200)
     except json.JSONDecodeError:
         return JsonResponse({"error": "Invalid JSON body"}, status=400)
-    except (ValueError, KeyError) as exc:
+    except (ValueError, TypeError, KeyError) as exc:
         return JsonResponse({"error": str(exc)}, status=400)
     except Exception as exc:
         logger.error(f"Error in start_deliberation: {type(exc).__name__}")
@@ -227,7 +229,7 @@ def stream_deliberation(request: HttpRequest):
     try:
         if not request.body:
             return JsonResponse({"error": "Empty request body"}, status=400)
-        data = json.loads(request.body)
+        data = load_json_object(request.body)
         delib_req = _parse_deliberation_request(data, user_obj.username)
         provider = get_model_provider(delib_req.provider_name, model_name=delib_req.model_name)
         engine = DeliberationEngine(registry=DEFAULT_REGISTRY, provider=provider)
@@ -244,7 +246,7 @@ def stream_deliberation(request: HttpRequest):
         )
     except json.JSONDecodeError:
         return JsonResponse({"error": "Invalid JSON body"}, status=400)
-    except (ValueError, KeyError) as exc:
+    except (ValueError, TypeError, KeyError) as exc:
         return JsonResponse({"error": str(exc)}, status=400)
 
 
@@ -288,7 +290,7 @@ def get_run_detail(request: HttpRequest, run_id: str) -> JsonResponse:
     except DeliberationRun.DoesNotExist:
         return JsonResponse({"error": f"Run '{run_id}' not found"}, status=404)
 
-    if run_obj.user and run_obj.user != user_obj:
+    if run_obj.user_id != user_obj.pk:
         return JsonResponse({"error": "Forbidden: run belongs to another user"}, status=403)
 
     return JsonResponse(
@@ -320,13 +322,13 @@ def evaluate_run_view(request: HttpRequest) -> JsonResponse:
         return auth_err or JsonResponse({"error": "Unauthorized"}, status=401)
 
     try:
-        data = json.loads(request.body or b"{}")
+        data = load_json_object(request.body or b"{}")
         run_id = str(data.get("run_id") or "").strip()
         if not run_id:
             return JsonResponse({"error": "Missing 'run_id'"}, status=400)
 
         run_obj = DeliberationRun.objects.get(run_id=run_id)
-        if run_obj.user and run_obj.user != user_obj:
+        if run_obj.user_id != user_obj.pk:
             return JsonResponse({"error": "Forbidden: run belongs to another user"}, status=403)
 
         # Rehydrate DeliberationRunResult for evaluation
@@ -380,12 +382,12 @@ def compare_strategies_view(request: HttpRequest) -> JsonResponse:
         return auth_err
 
     try:
-        data = json.loads(request.body or b"{}")
+        data = load_json_object(request.body or b"{}")
         question = str(data.get("question") or data.get("prompt") or "").strip()
         if not question:
             return JsonResponse({"error": "Missing 'question'"}, status=400)
 
-        provider_name = str(data.get("provider") or "fake").strip()
+        provider_name = str(data.get("provider") or settings.DEFAULT_MODEL_PROVIDER).strip()
         runner = ExperimentRunner(
             provider_name=provider_name,
             model_name=data.get("model"),
